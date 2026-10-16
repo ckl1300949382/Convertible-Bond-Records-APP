@@ -1,0 +1,58 @@
+"""SQLite 连接与 schema 管理（文档 §5.1）。
+
+数据库路径可注入：默认 %LOCALAPPDATA%/ConvertibleBondProfit/data/app.db，
+测试一律传入临时路径。版本迁移策略在阶段 4 实现。
+"""
+
+from __future__ import annotations
+
+import os
+import sqlite3
+from pathlib import Path
+
+SCHEMA_VERSION = 1
+
+_SCHEMA = """
+CREATE TABLE IF NOT EXISTS sales (
+    id INTEGER PRIMARY KEY,
+    bond_name TEXT NOT NULL
+        CHECK (length(trim(bond_name)) BETWEEN 1 AND 50),
+    bond_code TEXT NOT NULL
+        CHECK (bond_code GLOB '[0-9][0-9][0-9][0-9][0-9][0-9]'),
+    sale_date TEXT NOT NULL
+        CHECK (sale_date GLOB '[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]'),
+    sale_price_cents INTEGER NOT NULL CHECK (sale_price_cents > 0),
+    quantity INTEGER NOT NULL CHECK (quantity > 0),
+    note TEXT NOT NULL DEFAULT '',
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_sales_sale_date ON sales (sale_date);
+CREATE INDEX IF NOT EXISTS idx_sales_bond_code ON sales (bond_code);
+"""
+
+
+def default_database_path() -> Path:
+    """真实运行时的数据库路径。"""
+    base = os.environ.get("LOCALAPPDATA")
+    if not base:
+        raise RuntimeError("未找到 LOCALAPPDATA 环境变量，无法确定数据目录")
+    return Path(base) / "ConvertibleBondProfit" / "data" / "app.db"
+
+
+def connect(db_path: Path | str | None = None) -> sqlite3.Connection:
+    """打开连接；目录与表结构不存在时创建。"""
+    path = Path(db_path) if db_path is not None else default_database_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+    conn = sqlite3.connect(path)
+    conn.execute("PRAGMA foreign_keys = ON")
+    conn.executescript(_SCHEMA)
+
+    current_version = conn.execute("PRAGMA user_version").fetchone()[0]
+    if current_version == 0:
+        # 空参数化不适用于 PRAGMA；值为常量，无注入风险
+        conn.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
+
+    conn.commit()
+    return conn
