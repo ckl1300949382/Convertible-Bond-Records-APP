@@ -9,6 +9,7 @@ from __future__ import annotations
 import logging
 import sys
 
+import bond_profit
 from PySide6.QtWidgets import QApplication
 
 from bond_profit.infrastructure.logging import setup_logging
@@ -19,7 +20,7 @@ logger = logging.getLogger(__name__)
 
 def main() -> int:
     setup_logging()
-    logger.info("应用启动，版本 %s", __import__("bond_profit").__version__)
+    logger.info("应用启动，版本 %s", bond_profit.__version__)
 
     app = QApplication(sys.argv)
     app.setApplicationName("可转债收益记录")
