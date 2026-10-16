@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# 打包生成物（文档 8.4：不入 Git）
+dist/
+build/
+
+# 数据库、备份、日志等运行时产物（文档 8.4 红线）
+*.db
+*.db-journal
+*.sqlite*
+backups/
+logs/
+*.log
+
+# IDE / 系统
+.vscode/
+.idea/
+Thumbs.db
+Desktop.ini
+.DS_Store
