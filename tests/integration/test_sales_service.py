@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import sqlite3
+from dataclasses import replace
 from datetime import date, timedelta
 from decimal import Decimal
 
@@ -74,6 +75,42 @@ def test_delete_record(service):
     created = service.create_record(make_record()).record
     service.delete_record(created.id)
     assert service.list_records() == []
+
+
+# ---- 变更回调（阶段 4 备份脏标记） ---------------------------------------------
+
+def test_on_change_fires_on_successful_writes(tmp_path):
+    calls = []
+    conn = connect(tmp_path / "app.db")
+    service = SalesService(SalesRepository(conn), on_change=lambda: calls.append(1))
+    try:
+        created = service.create_record(make_record()).record
+        updated = replace(created, sale_price=Decimal("128.88"), note="改")
+        service.update_record(updated)
+        assert len(calls) == 2  # 新增 + 更新各一次
+
+        service.create_record(make_record(bond_code="12"))  # 校验失败不触发
+        assert len(calls) == 2
+
+        service.delete_record(created.id)
+        service.add_many([make_record(), make_record(note="第二条")])
+        assert len(calls) == 4  # 删除 + 批量导入各一次
+    finally:
+        conn.close()
+
+
+def test_on_change_failure_does_not_break_recording(tmp_path):
+    def broken_callback():
+        raise RuntimeError("模拟回调异常")
+
+    conn = connect(tmp_path / "app.db")
+    service = SalesService(SalesRepository(conn), on_change=broken_callback)
+    try:
+        result = service.create_record(make_record())  # 回调异常不影响记录
+        assert result.ok
+        assert len(service.list_records()) == 1
+    finally:
+        conn.close()
 
 
 def test_write_failure_returns_failure_and_saves_nothing(service):

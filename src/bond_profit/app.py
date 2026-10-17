@@ -11,11 +11,18 @@ import sys
 import bond_profit
 from PySide6.QtCore import Qt
 from PySide6.QtNetwork import QLocalServer, QLocalSocket
-from PySide6.QtWidgets import QApplication
+from PySide6.QtWidgets import QApplication, QMessageBox
 
+from bond_profit.application.backup_service import BackupService
 from bond_profit.application.excel_service import ExcelService
 from bond_profit.application.sales_service import SalesService
-from bond_profit.infrastructure.database import connect
+from bond_profit.infrastructure.backup import BackupError, backup_dirs
+from bond_profit.infrastructure.backup_state import StateStore
+from bond_profit.infrastructure.database import (
+    DatabaseCorruptError,
+    connect,
+    default_database_path,
+)
 from bond_profit.infrastructure.logging import setup_logging
 from bond_profit.infrastructure.repository import SalesRepository
 from bond_profit.ui.main_window import MainWindow
@@ -38,9 +45,28 @@ def main() -> int:
         _notify_existing_instance()
         return 0
 
-    conn = connect()
-    service = SalesService(SalesRepository(conn))
+    data_root = default_database_path().parent.parent
+    auto_dir, protected_dir = backup_dirs(data_root)
+
+    try:
+        conn = connect()
+    except DatabaseCorruptError as exc:
+        # §6.5：停止正常使用，保留损坏文件，引导手动恢复；不得静默建空库
+        logger.critical("数据库损坏，停止启动：%s", exc.path, exc_info=True)
+        QMessageBox.critical(None, "数据库损坏", str(exc))
+        return 1
+
+    backup_service = BackupService(
+        conn, StateStore(data_root / "state.json"), auto_dir, protected_dir
+    )
+    service = SalesService(SalesRepository(conn), on_change=backup_service.mark_dirty)
     excel_service = ExcelService(service)
+
+    try:
+        backup_service.run_auto_backup()  # §6.1 启动时检查
+    except BackupError:
+        # BAK-03：醒目但不阻断，允许重试；批次 16 接入备份页重试入口
+        logger.warning("启动自动备份失败，可在备份页重试", exc_info=True)
 
     window = MainWindow(service, excel_service)
     _start_single_instance_server(window)

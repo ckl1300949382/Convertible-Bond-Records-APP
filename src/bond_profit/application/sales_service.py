@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import logging
 import math
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from decimal import Decimal
 
@@ -40,8 +41,14 @@ class PageResult:
 
 
 class SalesService:
-    def __init__(self, repository: SalesRepository) -> None:
+    def __init__(
+        self,
+        repository: SalesRepository,
+        on_change: Callable[[], None] | None = None,
+    ) -> None:
+        """on_change：任一成功写入后触发的回调（阶段 4 供备份脏标记使用）。"""
         self._repository = repository
+        self._on_change = on_change
 
     def create_record(self, record: SaleRecord) -> ServiceResult:
         """新增记录。校验失败或写入失败均不假装成功。"""
@@ -54,10 +61,13 @@ class SalesService:
     def delete_record(self, record_id: int) -> None:
         """删除记录；失败抛出 RepositoryError 由调用方提示。"""
         self._repository.delete(record_id)
+        self._notify_change()
 
     def add_many(self, records: list[SaleRecord]) -> list[SaleRecord]:
         """批量新增（§4.3 Excel 导入）：先标准化再单事务写入，全有或全无。"""
-        return self._repository.add_many([normalize(r) for r in records])
+        saved = self._repository.add_many([normalize(r) for r in records])
+        self._notify_change()
+        return saved
 
     def list_records(self) -> list[SaleRecord]:
         return self._repository.list_all()
@@ -96,6 +106,15 @@ class SalesService:
 
     # ---- 内部 -------------------------------------------------------------
 
+    def _notify_change(self) -> None:
+        """成功写入后通知；回调失败只记日志，绝不影响记录本身。"""
+        if self._on_change is None:
+            return
+        try:
+            self._on_change()
+        except Exception:
+            logger.exception("数据变更回调失败")
+
     def _write(self, action, record: SaleRecord) -> ServiceResult:
         normalized = normalize(record)
         errors = validate_record(normalized)
@@ -106,4 +125,5 @@ class SalesService:
         except RepositoryError as exc:
             logger.error("数据库写入失败：%s", exc, exc_info=True)
             return ServiceResult(ok=False, failure=str(exc))
+        self._notify_change()
         return ServiceResult(ok=True, record=saved)

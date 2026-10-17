@@ -32,6 +32,17 @@ CREATE INDEX IF NOT EXISTS idx_sales_bond_code ON sales (bond_code);
 """
 
 
+class DatabaseCorruptError(Exception):
+    """数据库文件存在但已损坏。必须停止正常使用，引导手动恢复（§6.5）。"""
+
+    def __init__(self, path: Path) -> None:
+        self.path = path
+        super().__init__(
+            "数据库文件已损坏，为保护数据已停止启动。原文件已原样保留，"
+            "请勿删除或改动它；可在其他正常会话中通过备份恢复功能处理。"
+        )
+
+
 def default_database_path() -> Path:
     """真实运行时的数据库路径。"""
     base = os.environ.get("LOCALAPPDATA")
@@ -40,10 +51,33 @@ def default_database_path() -> Path:
     return Path(base) / "ConvertibleBondProfit" / "data" / "app.db"
 
 
+def _check_existing_integrity(path: Path) -> None:
+    """已存在的非空库文件先做完整性检查，再允许任何写入（§6.5）。
+
+    损坏时抛出 DatabaseCorruptError，原文件原样保留供排查；
+    不得静默创建空库覆盖（§5.3）。
+    """
+    conn = sqlite3.connect(f"{path.as_uri()}?mode=ro", uri=True)
+    try:
+        result = conn.execute("PRAGMA integrity_check").fetchone()[0]
+    except sqlite3.DatabaseError as exc:
+        raise DatabaseCorruptError(path) from exc
+    finally:
+        conn.close()
+    if result != "ok":
+        raise DatabaseCorruptError(path)
+
+
 def connect(db_path: Path | str | None = None) -> sqlite3.Connection:
-    """打开连接；目录与表结构不存在时创建。"""
+    """打开连接；目录与表结构不存在时创建。
+
+    已存在的非空库文件先通过完整性检查，损坏则拒绝打开。
+    """
     path = Path(db_path) if db_path is not None else default_database_path()
     path.parent.mkdir(parents=True, exist_ok=True)
+
+    if path.exists() and path.stat().st_size > 0:
+        _check_existing_integrity(path)
 
     conn = sqlite3.connect(path)
     conn.execute("PRAGMA foreign_keys = ON")
