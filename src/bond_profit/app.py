@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import logging
+import sqlite3
 import sys
 
 import bond_profit
@@ -16,12 +17,16 @@ from PySide6.QtWidgets import QApplication, QMessageBox
 from bond_profit.application.backup_service import BackupService
 from bond_profit.application.excel_service import ExcelService
 from bond_profit.application.sales_service import SalesService
-from bond_profit.infrastructure.backup import BackupError, backup_dirs
+from bond_profit.infrastructure.backup import BackupError, backup_dirs, create_backup
 from bond_profit.infrastructure.backup_state import StateStore
 from bond_profit.infrastructure.database import (
+    SCHEMA_VERSION,
     DatabaseCorruptError,
+    DatabaseTooNewError,
+    MigrationError,
     connect,
     default_database_path,
+    inspect_database,
 )
 from bond_profit.infrastructure.logging import setup_logging
 from bond_profit.infrastructure.repository import SalesRepository
@@ -47,13 +52,61 @@ def main() -> int:
 
     data_root = default_database_path().parent.parent
     auto_dir, protected_dir = backup_dirs(data_root)
+    db_path = default_database_path()
 
+    # ---- 启动预检（§5.3 / §6.5）：只读识别，不做任何写入 -----------------------
+    try:
+        db_version = inspect_database(db_path)
+    except DatabaseCorruptError as exc:
+        logger.critical("数据库损坏，停止启动：%s", exc.path, exc_info=True)
+        QMessageBox.critical(None, "数据库损坏", str(exc))
+        return 1
+
+    if db_version > SCHEMA_VERSION:
+        # MIG-03：旧程序拒绝写入新版数据库，提示升级
+        logger.error("数据库版本 %s 高于程序版本 %s", db_version, SCHEMA_VERSION)
+        QMessageBox.critical(
+            None,
+            "需要升级程序",
+            f"当前数据库版本（{db_version}）比程序支持的版本（{SCHEMA_VERSION}）"
+            "更新，旧程序已停止启动以保护数据。请使用新版程序打开。",
+        )
+        return 1
+
+    if 0 < db_version < SCHEMA_VERSION:
+        # §5.3：迁移前先创建并验证升级前保护备份；失败停止启动，原数据不动
+        try:
+            pre_conn = sqlite3.connect(db_path)
+            try:
+                create_backup(pre_conn, protected_dir, "protected")
+            finally:
+                pre_conn.close()
+        except BackupError:
+            logger.error("升级前保护备份失败，停止迁移", exc_info=True)
+            QMessageBox.critical(
+                None,
+                "升级前备份失败",
+                "创建升级前保护备份失败，已停止启动。原数据未改动，"
+                "请检查磁盘空间后重试。",
+            )
+            return 1
+
+    # ---- 打开数据库（版本过旧时在 connect 内执行迁移） ------------------------
     try:
         conn = connect()
     except DatabaseCorruptError as exc:
         # §6.5：停止正常使用，保留损坏文件，引导手动恢复；不得静默建空库
         logger.critical("数据库损坏，停止启动：%s", exc.path, exc_info=True)
         QMessageBox.critical(None, "数据库损坏", str(exc))
+        return 1
+    except DatabaseTooNewError as exc:
+        logger.error("数据库版本过新：%s", exc.path, exc_info=True)
+        QMessageBox.critical(None, "需要升级程序", str(exc))
+        return 1
+    except MigrationError as exc:
+        # MIG-02：迁移失败停止启动，原数据保留
+        logger.critical("数据库迁移失败，停止启动", exc_info=True)
+        QMessageBox.critical(None, "数据库迁移失败", str(exc))
         return 1
 
     backup_service = BackupService(
