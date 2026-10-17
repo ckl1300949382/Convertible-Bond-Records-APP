@@ -12,6 +12,7 @@ import bond_profit
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtWidgets import (
+    QApplication,
     QComboBox,
     QFrame,
     QHBoxLayout,
@@ -32,6 +33,7 @@ from bond_profit.application.sales_service import SalesService
 from bond_profit.domain.calculations import format_money, profit_per_record
 from bond_profit.domain.models import RecordQuery, SaleRecord
 from bond_profit.ui.bar_chart import BarChart
+from bond_profit.ui import prefs, theme
 from bond_profit.ui.record_dialog import RecordDialog
 
 _COLUMNS = (
@@ -50,17 +52,26 @@ _PAGE_SIZE = 20  # 每页 20 条（§3.3）
 
 
 class MainWindow(QMainWindow):
-    def __init__(self, service: SalesService) -> None:
+    def __init__(
+        self, service: SalesService, settings_path: str | None = None
+    ) -> None:
         super().__init__()
         self._service = service
+        self._settings = prefs.open_settings(settings_path)
         self._records: list[SaleRecord] = []
         self._page = 1
         self._total = 0
-        self._sort_key = "date"
-        self._sort_desc = True  # 默认最新日期在前（§3.3）
+
+        # 恢复窗口大小/位置与表格排序（§3.6 记住窗口状态，不记住筛选）
+        geometry, sort_key, sort_desc = prefs.load_window_state(self._settings)
+        self._sort_key = sort_key
+        self._sort_desc = sort_desc
 
         self.setWindowTitle(f"可转债收益记录 v{bond_profit.__version__}")
-        self.resize(1080, 760)
+        if geometry is not None:
+            self.restoreGeometry(geometry)
+        else:
+            self.resize(1080, 760)
 
         central = QWidget()
         layout = QVBoxLayout(central)
@@ -92,6 +103,11 @@ class MainWindow(QMainWindow):
         for month in range(1, 13):
             self.month_combo.addItem(f"{month} 月", month)
         toolbar.addWidget(self.month_combo)
+
+        self.theme_button = QPushButton("主题")  # 文本在 _apply_theme_mode 设置
+        self.theme_button.setFixedWidth(64)
+        self.theme_button.setToolTip("在浅色/深色之间切换，选择会被记住")
+        toolbar.addWidget(self.theme_button)
 
         layout.addLayout(toolbar)
 
@@ -152,7 +168,13 @@ class MainWindow(QMainWindow):
         header.setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
         header.setStretchLastSection(True)
         header.setSortIndicatorShown(True)
-        header.setSortIndicator(0, Qt.SortOrder.DescendingOrder)
+        _section_for_key = {key: sec for sec, key in _SORTABLE_COLUMNS.items()}
+        header.setSortIndicator(
+            _section_for_key[self._sort_key],
+            Qt.SortOrder.DescendingOrder
+            if self._sort_desc
+            else Qt.SortOrder.AscendingOrder,
+        )
         table_layout.addWidget(self.table)
 
         # ---- 底部分页栏 --------------------------------------------------------
@@ -203,11 +225,46 @@ class MainWindow(QMainWindow):
         self.next_button.clicked.connect(self._on_next_page)
         self.empty_add_button.clicked.connect(self._on_add)
         self.chart_year_combo.currentIndexChanged.connect(self._on_chart_year_changed)
+        self.theme_button.clicked.connect(self._on_toggle_theme)
 
         find_shortcut = QShortcut(QKeySequence("Ctrl+F"), self)
         find_shortcut.activated.connect(self._on_focus_search)
+        new_record_shortcut = QShortcut(QKeySequence("Ctrl+N"), self)
+        new_record_shortcut.activated.connect(self._on_add)
+
+        # 应用已保存的主题（§3.6：首次跟随 Windows，手动切换后记住选择）
+        self._apply_theme_mode(prefs.resolve_theme(self._settings), save=False)
 
         self.refresh_records()
+
+    # ---- 主题（§3.6） ---------------------------------------------------------
+
+    def _apply_theme_mode(self, mode: str, save: bool = True) -> None:
+        """应用浅/深色主题；save=True 时把选择写入偏好。"""
+        application = QApplication.instance()
+        if application is not None:
+            theme.apply_theme(application, mode)
+        label_color = theme.chart_label_color(mode)
+        self.monthly_chart.set_label_color(label_color)
+        self.yearly_chart.set_label_color(label_color)
+        self.theme_button.setText("深色" if mode == "dark" else "浅色")
+        self.theme_button.setToolTip("当前为{}主题，点击切换".format(
+            "深色" if mode == "dark" else "浅色"
+        ))
+        if save:
+            prefs.save_theme(self._settings, mode)
+
+    def _on_toggle_theme(self) -> None:
+        current = "dark" if self.theme_button.text() == "深色" else "light"
+        self._apply_theme_mode("light" if current == "dark" else "dark")
+
+    # ---- 窗口状态（§3.6） ------------------------------------------------------
+
+    def closeEvent(self, event) -> None:  # noqa: N802 (Qt 命名)
+        prefs.save_window_state(
+            self._settings, self.saveGeometry(), self._sort_key, self._sort_desc
+        )
+        super().closeEvent(event)
 
     # ---- 数据显示 ----------------------------------------------------------
 

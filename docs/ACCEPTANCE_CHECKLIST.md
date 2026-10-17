@@ -57,3 +57,38 @@
 ## 已知问题
 
 - 搜索筛选、排序切换、分页、统计卡片、图表按文档安排在阶段 2。
+
+---
+
+# 阶段 2 验收清单（版本 0.3.0）
+
+范围：§3.2 统计卡片与空状态、§3.3 搜索/筛选/排序/分页、§3.5 图表、§3.6 主题与快捷键、§9 测试矩阵 STA-01/02/03、UI-01、REC-02。
+
+## 自动验证（Agent 已执行，136 passed in 3.6s）
+
+| # | 验收项 | 对应测试 | 实际结果 | 是否通过 |
+|---|---|---|---|---|
+| C1 | 搜索/筛选/排序/分页组合一致性（UI-01） | test_repository 12 项 + test_main_window 分页/搜索/筛选 13 项 | 分页边界、LIKE 转义、排序白名单（含注入用例）、同键 id 降序稳定次序均符合 | 通过 |
+| C2 | 统计卡片全局性（STA-01） | test_stat_cards_unaffected_by_search_filter | 筛选列表时四张卡片保持全局值 | 通过 |
+| C3 | 空月份补 0（STA-02） | test_monthly_profits_missing_months_are_zero | 12 项固定，缺失月份为 0 | 通过 |
+| C4 | 负收益处理（STA-03） | test_monthly_profits_negative_month_counts_below_zero + test_yearly_profits_ascending_order | 负值保留并参与聚合，图表负值向下 | 通过 |
+| C5 | 修改历史日期重新归属（REC-02） | test_rec02_editing_date_moves_month_attribution 等 | 编辑日期后卡片/图表随刷新重新归属 | 通过 |
+| C6 | 增删改后卡片与图表同步刷新 | test_charts_refresh_after_add_and_delete、test_stat_cards_refresh_after_delete | 同一 refresh_records 入口刷新 | 通过 |
+| C7 | 主题跟随/切换/记忆 | test_theme_* + test_prefs | 未保存偏好跟随注册表；切换保存；重启恢复 | 通过 |
+| C8 | 窗口大小/位置/排序记忆，不记筛选 | test_window_geometry_and_sort_remembered_but_filters_not | 记住几何与排序，搜索词不保留 | 通过 |
+| C9 | 快捷键 Ctrl+N / Ctrl+S / Ctrl+F | test_ctrl_n_opens_add_dialog、test_ctrl_s_shortcut_triggers_save、test_ctrl_f_focuses_search_input | 信号接线全部生效 | 通过 |
+| C10 | 分页每页 20 条、筛选回第一页、删尾自动前移 | test_pagination_* 、test_delete_last_item_on_last_page_adjusts_page | 行为符合 §3.3 | 通过 |
+
+## 人工抽检（自动化已知限制，建议用户花两分钟复核）
+
+| # | 操作步骤 | 预期结果 | 备注 |
+|---|---|---|---|
+| D1 | 双击表格某行 | 打开编辑弹窗 | 合成键事件不触发 doubleClicked（阶段 1 已知限制），真实鼠标不受影响 |
+| D2 | 主窗口按 Ctrl+N / Ctrl+F，弹窗内按 Ctrl+S / Esc | 对应新增/聚焦搜索/保存/关闭确认 | QShortcut 对合成键不响应已验证接线，真实按键留复核 |
+| D3 | 工具栏「主题」按钮来回切换 | 深浅色即时生效，图表文字颜色跟随，重启后保持 | 视觉效果人工确认 |
+| D4 | Windows 系统切换深色后（未手动切过主题时）启动程序 | 跟随系统深色 | 需系统设置配合 |
+
+## 已知问题
+
+- 月度/年度图为自绘柱状图（QtCharts 的 QBarSet 无法逐柱按盈亏着色，按计划走回退方案），不支持缩放/悬浮提示，属文档范围外的增强项。
+- 独立「收益统计」页按用户决策留待后续阶段，当前图表在首页。

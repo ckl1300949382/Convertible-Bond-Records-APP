@@ -11,6 +11,7 @@ from datetime import date
 from decimal import Decimal, InvalidOperation
 
 from PySide6.QtCore import QDate
+from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtWidgets import (
     QDateEdit,
     QDialog,
@@ -124,6 +125,8 @@ class RecordDialog(QDialog):
 
         self.save_button.clicked.connect(self._on_save)
         self.cancel_button.clicked.connect(self.reject)
+        save_shortcut = QShortcut(QKeySequence("Ctrl+S"), self)  # §3.6 快捷键
+        save_shortcut.activated.connect(self._on_save)
 
     @staticmethod
     def _field_group(title: str, editor: QWidget, error_label: QLabel) -> QWidget:

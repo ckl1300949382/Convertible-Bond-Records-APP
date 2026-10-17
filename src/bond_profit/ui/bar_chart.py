@@ -16,8 +16,7 @@ from bond_profit.domain.calculations import format_money
 
 _COLOR_PROFIT = QColor("#c62828")  # 盈利红
 _COLOR_LOSS = QColor("#2e7d32")  # 亏损绿
-_COLOR_AXIS = QColor("#9e9e9e")  # 零轴线
-_COLOR_LABEL = QColor("#555555")  # 标签
+_COLOR_AXIS = QColor("#9e9e9e")  # 零轴线（标签色由 set_label_color 按主题切换）
 
 _MARGIN_H = 8  # 左右留白
 _TOP = 26  # 顶部留白（数值标签）
@@ -31,12 +30,18 @@ class BarChart(QWidget):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self._items: list[tuple[str, Decimal]] = []
+        self._label_color = QColor("#555555")
         self.setMinimumHeight(170)
 
     @property
     def items(self) -> list[tuple[str, Decimal]]:
         """当前数据（供测试断言）。"""
         return self._items
+
+    def set_label_color(self, color: QColor) -> None:
+        """标签/轴线颜色随主题切换（§3.6）。"""
+        self._label_color = QColor(color)
+        self.update()
 
     def set_data(self, items: list[tuple[str, Decimal]]) -> None:
         self._items = list(items)
@@ -53,7 +58,7 @@ class BarChart(QWidget):
             return
 
         if not self._items:
-            painter.setPen(_COLOR_LABEL)
+            painter.setPen(self._label_color)
             painter.drawText(self.rect(), Qt.AlignmentFlag.AlignCenter, "暂无数据")
             return
 
@@ -81,7 +86,7 @@ class BarChart(QWidget):
             if value > 0:
                 bar_h = float(value) * scale
                 painter.fillRect(QRectF(x, zero_y - bar_h, bar_w, bar_h), _COLOR_PROFIT)
-                painter.setPen(_COLOR_LABEL)
+                painter.setPen(self._label_color)
                 painter.drawText(
                     QRectF(_MARGIN_H + index * col_w, zero_y - bar_h - _TOP + 6, col_w, 12),
                     Qt.AlignmentFlag.AlignCenter,
@@ -90,14 +95,14 @@ class BarChart(QWidget):
             elif value < 0:
                 bar_h = float(-value) * scale
                 painter.fillRect(QRectF(x, zero_y, bar_w, bar_h), _COLOR_LOSS)
-                painter.setPen(_COLOR_LABEL)
+                painter.setPen(self._label_color)
                 painter.drawText(
                     QRectF(_MARGIN_H + index * col_w, zero_y + bar_h + 2, col_w, 12),
                     Qt.AlignmentFlag.AlignCenter,
                     text,
                 )
             else:  # 零收益：不画柱，数值仍显示（§3.5 中性 + 带符号数字）
-                painter.setPen(_COLOR_LABEL)
+                painter.setPen(self._label_color)
                 painter.drawText(
                     QRectF(_MARGIN_H + index * col_w, _TOP - 14, col_w, 12),
                     Qt.AlignmentFlag.AlignCenter,

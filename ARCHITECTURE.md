@@ -24,13 +24,16 @@ ui ──▶ application ──▶ domain
 ## 现有模块
 
 - `app.py`：装配入口 + 单实例控制（QLocalServer/QLocalSocket，§3.6）
-- `application/sales_service.py`：校验→事务写入协调层，UI 唯一入口；数据库失败转中文提示并记日志
-- `domain/`：models（SaleRecord）、validation（7 项校验+标准化）、calculations（收益+格式化）、money（元↔分）
+- `application/sales_service.py`：校验→事务写入协调层，UI 唯一入口；数据库失败转中文提示并记日志；分页查询（页码钳制）与统计聚合透传
+- `domain/`：models（SaleRecord、RecordQuery）、validation（7 项校验+标准化）、calculations（收益+格式化）、money（元↔分）、statistics（全局卡片/月度/年度聚合，纯函数 Decimal）
 - `infrastructure/database.py`：SQLite 连接、建表、user_version=1、路径可注入
-- `infrastructure/repository.py`：sales 表 CRUD、参数化 SQL、事务边界、允许重复录入
+- `infrastructure/repository.py`：sales 表 CRUD、分页查询（关键词转义/年月筛选/排序白名单）、distinct_years、参数化 SQL、事务边界、允许重复录入
 - `infrastructure/logging.py`：RotatingFileHandler 日志，目录可注入（测试用临时目录）
-- `ui/main_window.py`：记录表格 + 新增/编辑/删除
-- `ui/record_dialog.py`：新增/编辑弹窗（校验提示、失败保留输入、Esc 确认放弃）
+- `ui/main_window.py`：统计卡片、月度/年度图表、记录表格（搜索/筛选/排序/分页）、空状态、主题与窗口状态记忆、Ctrl+N/Ctrl+F
+- `ui/record_dialog.py`：新增/编辑弹窗（校验提示、失败保留输入、Esc 确认放弃、Ctrl+S）
+- `ui/bar_chart.py`：自绘柱状图（盈红/亏绿/零中性、数值带正负号、负值向零轴下方）
+- `ui/theme.py`：Windows 主题检测 + 深色 QSS 调色板
+- `ui/prefs.py`：QSettings 偏好读写（主题/窗口几何/排序；不记筛选），ini 路径可注入
 
 ## 关键设计决策
 

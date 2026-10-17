@@ -3,8 +3,16 @@
 格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)。
 程序版本采用 `MAJOR.MINOR.PATCH`，数据库 schema_version 独立递增（阶段 1 起）。
 
-## [未发布] - 阶段 2：首页与统计交互
+## [0.3.0] - 2026-10-17
 
+- 阶段 2：首页与统计交互完成（版本号随本阶段发布递增）
+- 批次 8：
+  - 主题（§3.6）：首次启动跟随 Windows 浅/深色（读注册表 AppsUseLightTheme），工具栏「主题」按钮手动切换并保存偏好；深色为精简 QSS 调色板，图表标签/轴线颜色随主题切换
+  - 窗口状态（§3.6）：记住窗口大小/位置（saveGeometry）与表头排序；明确不记住搜索/筛选条件
+  - 快捷键（§3.6）：Ctrl+N 新增记录、Ctrl+S 弹窗内保存（Ctrl+F/Esc 此前已支持）
+  - 偏好存储：ui/prefs.py 集中 QSettings 读写，测试可注入 ini 文件路径隔离
+  - 版本号 0.2.0 → 0.3.0；阶段 2 验收清单见 docs/ACCEPTANCE_CHECKLIST.md
+  - 测试：主题 5 项、偏好 5 项、UI 4 项、弹窗 Ctrl+S 1 项；全套 136 项通过
 - 批次 7：
   - 领域层：monthly_profits（某年固定 12 项、缺失补 0、可含负值）、yearly_profits（年份升序聚合）
   - 服务层：monthly_profits / yearly_profits 透传

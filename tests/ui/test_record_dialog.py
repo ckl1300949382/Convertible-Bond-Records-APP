@@ -7,6 +7,7 @@ from decimal import Decimal
 
 import pytest
 from PySide6.QtCore import QDate
+from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtWidgets import QDialog, QMessageBox
 
 from bond_profit.application.sales_service import SalesService
@@ -42,6 +43,27 @@ def test_invalid_save_shows_errors_and_stays_open(service, qtbot):
     assert dialog.isVisible()
     assert not dialog.name_error.isHidden()
     assert service.list_records() == []
+
+
+def test_ctrl_s_shortcut_triggers_save(service, qtbot):
+    """Ctrl+S 触发保存（QShortcut 对合成键事件不响应，验证接线）。"""
+    dialog = RecordDialog(service)
+    qtbot.addWidget(dialog)
+    dialog.show()
+
+    dialog.name_edit.setText("平银转债")
+    dialog.code_edit.setText("012345")
+    dialog.price_edit.setText("130.50")
+    dialog.quantity_spin.setValue(10)
+
+    shortcut = dialog.findChild(QShortcut)
+    assert shortcut is not None and shortcut.key() == QKeySequence("Ctrl+S")
+    shortcut.activated.emit()
+
+    assert dialog.result() == QDialog.DialogCode.Accepted
+    records = service.list_records()
+    assert len(records) == 1
+    assert records[0].bond_name == "平银转债"
 
 
 def test_non_numeric_price_shows_field_error(service, qtbot):

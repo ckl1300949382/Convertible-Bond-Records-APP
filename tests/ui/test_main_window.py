@@ -15,6 +15,7 @@ from bond_profit.application.sales_service import SalesService
 from bond_profit.domain.models import SaleRecord
 from bond_profit.infrastructure.database import connect
 from bond_profit.infrastructure.repository import SalesRepository
+from bond_profit.ui import prefs
 from bond_profit.ui.main_window import MainWindow
 
 
@@ -430,3 +431,81 @@ def test_charts_refresh_after_add_and_delete(service, qtbot, monkeypatch):
     )
     window._on_delete()
     assert window.yearly_chart.items == []  # 删除后图表同步清空
+
+
+# ---- 阶段 2 批次 8：主题 / 窗口状态记忆 / Ctrl+N（§3.6） ----------------------
+
+
+def test_theme_toggle_switches_and_saves(service, qtbot, qapp, tmp_path):
+    ini = str(tmp_path / "prefs.ini")
+    window = MainWindow(service, settings_path=ini)
+    qtbot.addWidget(window)
+
+    try:
+        before = window.theme_button.text()
+        window.theme_button.click()
+        after = window.theme_button.text()
+        assert {before, after} == {"浅色", "深色"}
+        assert (qapp.styleSheet() != "") == (after == "深色")  # 深色应用 QSS
+
+        saved = prefs.open_settings(ini)
+        assert saved.value("ui/theme") == ("dark" if after == "深色" else "light")
+    finally:
+        qapp.setStyleSheet("")  # 全局样式不泄漏到其他测试
+
+
+def test_theme_restored_from_settings(service, qtbot, qapp, tmp_path, monkeypatch):
+    ini = str(tmp_path / "prefs.ini")
+    settings = prefs.open_settings(ini)
+    prefs.save_theme(settings, "dark")
+
+    window = MainWindow(service, settings_path=ini)
+    qtbot.addWidget(window)
+    try:
+        assert window.theme_button.text() == "深色"
+        assert "QTableWidget" in qapp.styleSheet()
+    finally:
+        qapp.setStyleSheet("")
+
+
+def test_ctrl_n_opens_add_dialog(service, qtbot, monkeypatch):
+    window = MainWindow(service)
+    qtbot.addWidget(window)
+
+    ctrl_n = [
+        s for s in window.findChildren(QShortcut) if s.key() == QKeySequence("Ctrl+N")
+    ]
+    assert len(ctrl_n) == 1
+
+    opened = {}
+
+    class FakeDialog:
+        def __init__(self, svc, parent=None, record=None):
+            opened["record"] = record
+
+        def exec(self):
+            return 1
+
+    monkeypatch.setattr(main_window_module, "RecordDialog", FakeDialog)
+    ctrl_n[0].activated.emit()
+    assert opened["record"] is None  # Ctrl+N 是新增不是编辑
+
+
+def test_window_geometry_and_sort_remembered_but_filters_not(service, qtbot, tmp_path):
+    ini = str(tmp_path / "prefs.ini")
+    window = MainWindow(service, settings_path=ini)
+    qtbot.addWidget(window)
+    service.create_record(make_record())
+    window.refresh_records()
+
+    window.search_input.setText("不会保存的筛选")  # 筛选不记忆
+    window._on_header_clicked(3)  # 排序：价格降序
+    window.resize(1150, 700)
+    window.close()
+
+    restored = MainWindow(service, settings_path=ini)
+    qtbot.addWidget(restored)
+    assert restored._sort_key == "price"  # 排序记忆
+    assert restored._sort_desc is True
+    assert restored.width() == 1150  # 窗口大小记忆
+    assert restored.search_input.text() == ""  # 明确不记住筛选
