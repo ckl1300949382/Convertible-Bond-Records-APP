@@ -3,6 +3,24 @@
 格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)。
 程序版本采用 `MAJOR.MINOR.PATCH`，数据库 schema_version 独立递增（阶段 1 起）。
 
+## [未定版] - UI V2.0 阶段 0+1（分支 ui-v2）
+
+视觉改版第一批：设计令牌与双主题 QSS 基座。业务规则、数据库结构、Excel 规则、备份恢复逻辑零改动；无新增第三方依赖。
+
+- 阶段 0（基线与回退保障）：
+  - 建立分支 ui-v2；全量 pytest 基线：230 passed（真实执行）
+- 阶段 1（Design Tokens + 双主题 QSS + 字体排版）：
+  - ui/tokens.py（新增）：Design Tokens 集中定义——深色=深海蓝黑背景+冰蓝紫强调，浅色=珍珠白背景+雾紫蓝强调；盈红/亏绿（中国金融习惯，浅深各调亮度保证对比度）、错误色、提醒色、表格网格线/选中色/斑马纹、图表色；字体（Microsoft YaHei UI）、字号、间距、圆角令牌。约定界面代码不再硬编码十六进制色值
+  - ui/theme.py（重写）：浅/深两套完整定制 QSS 由令牌生成（浅色不再是 Qt 默认空样式），分节书写便于按节回退；覆盖输入控件、下拉弹层、微调框自绘箭头、按钮（含 accent 主按钮备用态）、表格、滚动条、导航列表、菜单/消息框/状态栏、日历弹层；新增 active_mode() 记录当前主题，chart_colors() 与 profit_color()/loss_color()/error_color()/warning_color()/error_qss() 主题感知取色接口
+  - ui/bar_chart.py：新增 apply_mode()——盈红/亏绿柱、零轴线、标签色随主题切换；保留 set_label_color() 旧接口兼容
+  - ui/main_window.py：主题切换改走 apply_mode() 并刷新收益列；单笔收益列按盈利红/亏损绿/零中性着色（仅显示层，收益计算与数据不变）
+  - ui/record_dialog.py、ui/import_preview_dialog.py、ui/backup_page.py：硬编码错误色（#c62828 / rgb(200,0,0) / Qt red）与重复跳过琥珀色全部接入主题令牌
+  - 测试：tests/unit/test_theme.py 更新（浅色现为完整 QSS、新增令牌/语义色/active_mode 断言）；tests/ui/test_main_window.py 主题断言改为双主题特征色判断。全量 pytest 真实执行：234 passed
+  - 视觉取证：docs/ui_v2_preview/ 三张截图（浅/深总览 + 深色记录弹窗，独立临时数据库模拟数据）
+- 已知问题：
+  - QT_QPA_PLATFORM=offscreen 离屏渲染缺 CJK 字体（截图取证改用真实 Windows 平台）
+  - QDateEdit 日历弹层星期表头颜色由 Qt 内部格式控制，深色模式对比度可能偏弱，后续阶段复核
+
 ## [1.0.0] - 2026-10-17 - 阶段 5：Windows 发布与综合验收
 
 - 批次 19（收官定版）：

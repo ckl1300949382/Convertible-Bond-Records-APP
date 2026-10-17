@@ -13,15 +13,14 @@ from PySide6.QtGui import QColor, QFont, QPainter, QPen
 from PySide6.QtWidgets import QWidget
 
 from bond_profit.domain.calculations import format_money
-
-_COLOR_PROFIT = QColor("#c62828")  # 盈利红
-_COLOR_LOSS = QColor("#2e7d32")  # 亏损绿
-_COLOR_AXIS = QColor("#9e9e9e")  # 零轴线（标签色由 set_label_color 按主题切换）
+from bond_profit.ui import theme
 
 _MARGIN_H = 8  # 左右留白
 _TOP = 26  # 顶部留白（数值标签）
 _BOTTOM = 22  # 底部留白（类别标签）
 _BAR_RATIO = 0.6  # 柱宽占列宽比例
+
+_LIGHT_COLORS = theme.chart_colors("light")  # 默认浅色（测试可独立实例化）
 
 
 class BarChart(QWidget):
@@ -30,7 +29,10 @@ class BarChart(QWidget):
     def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self._items: list[tuple[str, Decimal]] = []
-        self._label_color = QColor("#555555")
+        self._label_color = QColor(theme.CHART_LABEL_LIGHT)
+        self._color_profit = QColor(_LIGHT_COLORS["profit"])
+        self._color_loss = QColor(_LIGHT_COLORS["loss"])
+        self._color_axis = QColor(_LIGHT_COLORS["axis"])
         self.setMinimumHeight(170)
 
     @property
@@ -39,8 +41,17 @@ class BarChart(QWidget):
         return self._items
 
     def set_label_color(self, color: QColor) -> None:
-        """标签/轴线颜色随主题切换（§3.6）。"""
+        """仅设置标签色（保留旧接口；主题切换请用 apply_mode）。"""
         self._label_color = QColor(color)
+        self.update()
+
+    def apply_mode(self, mode: str) -> None:
+        """标签/轴线/盈亏柱颜色随主题切换（UI V2.0：盈红亏绿随主题调亮度）。"""
+        colors = theme.chart_colors(mode)
+        self._label_color = QColor(theme.chart_label_color(mode))
+        self._color_profit = QColor(colors["profit"])
+        self._color_loss = QColor(colors["loss"])
+        self._color_axis = QColor(colors["axis"])
         self.update()
 
     def set_data(self, items: list[tuple[str, Decimal]]) -> None:
@@ -77,7 +88,7 @@ class BarChart(QWidget):
         painter.setFont(label_font)
 
         # 零轴线
-        painter.setPen(QPen(_COLOR_AXIS, 1))
+        painter.setPen(QPen(self._color_axis, 1))
         painter.drawLine(_MARGIN_H, int(zero_y), width - _MARGIN_H, int(zero_y))
 
         for index, (label, value) in enumerate(self._items):
@@ -85,7 +96,7 @@ class BarChart(QWidget):
             text = format_money(value)
             if value > 0:
                 bar_h = float(value) * scale
-                painter.fillRect(QRectF(x, zero_y - bar_h, bar_w, bar_h), _COLOR_PROFIT)
+                painter.fillRect(QRectF(x, zero_y - bar_h, bar_w, bar_h), self._color_profit)
                 painter.setPen(self._label_color)
                 painter.drawText(
                     QRectF(_MARGIN_H + index * col_w, zero_y - bar_h - _TOP + 6, col_w, 12),
@@ -94,7 +105,7 @@ class BarChart(QWidget):
                 )
             elif value < 0:
                 bar_h = float(-value) * scale
-                painter.fillRect(QRectF(x, zero_y, bar_w, bar_h), _COLOR_LOSS)
+                painter.fillRect(QRectF(x, zero_y, bar_w, bar_h), self._color_loss)
                 painter.setPen(self._label_color)
                 painter.drawText(
                     QRectF(_MARGIN_H + index * col_w, zero_y + bar_h + 2, col_w, 12),

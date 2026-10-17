@@ -7,7 +7,6 @@
 from __future__ import annotations
 
 from PySide6.QtCore import Qt
-from PySide6.QtGui import QColor
 from PySide6.QtWidgets import (
     QDialog,
     QHBoxLayout,
@@ -26,6 +25,7 @@ from bond_profit.application.excel_service import (
     ImportPreview,
 )
 from bond_profit.domain.calculations import format_money
+from bond_profit.ui import theme
 
 _COLUMNS = (
     "Excel 行号",
@@ -40,12 +40,16 @@ _COLUMNS = (
 )
 
 _STATUS_TEXT = {"new": "可导入", "duplicate": "重复跳过", "error": "错误"}
-_STATUS_COLOR = {
-    "new": None,
-    "duplicate": QColor(176, 122, 0),  # 琥珀色，提示跳过
-    "error": QColor(200, 0, 0),
-}
 _DUPLICATE_HINT = "与数据库已有记录或文件内其他行相同"
+
+
+def _status_color(status: str):
+    """状态前景色随主题令牌：跳过=提醒色，错误=错误色，可导入=默认色。"""
+    if status == "duplicate":
+        return theme.warning_color()
+    if status == "error":
+        return theme.error_color()
+    return None
 
 
 class ImportPreviewDialog(QDialog):
@@ -82,7 +86,7 @@ class ImportPreviewDialog(QDialog):
         layout.addWidget(self.table)
 
         self.error_hint = QLabel("存在错误行，请修正源文件后重新导入")
-        self.error_hint.setStyleSheet("color: rgb(200, 0, 0);")
+        self.error_hint.setStyleSheet(theme.error_qss())
         self.error_hint.setVisible(preview.has_errors)
         layout.addWidget(self.error_hint)
 
@@ -128,7 +132,7 @@ class ImportPreviewDialog(QDialog):
                 )
             for col, text in enumerate(values):
                 item = QTableWidgetItem(text)
-                color = _STATUS_COLOR[row_result.status]
+                color = _status_color(row_result.status)
                 if color is not None:
                     item.setForeground(color)
                 if col in (0, 1, 3, 4, 5, 6):

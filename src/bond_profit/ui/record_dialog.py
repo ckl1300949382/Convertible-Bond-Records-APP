@@ -28,8 +28,7 @@ from PySide6.QtWidgets import (
 
 from bond_profit.application.sales_service import SalesService
 from bond_profit.domain.models import SaleRecord
-
-_ERROR_STYLE = "color: #c62828;"
+from bond_profit.ui import theme
 
 # 错误信息关键字 → 字段（领域层错误信息措辞可控，映射稳定）
 _FIELD_KEYWORDS = (
@@ -87,7 +86,7 @@ class RecordDialog(QDialog):
         self.quantity_error = QLabel()
         self.note_error = QLabel()
         self.general_error = QLabel()
-        self.general_error.setStyleSheet(_ERROR_STYLE)
+        self.general_error.setStyleSheet(theme.error_qss())
         self.general_error.setWordWrap(True)
         self.general_error.hide()
 
@@ -100,7 +99,7 @@ class RecordDialog(QDialog):
             "note": self.note_error,
         }
         for label in self._error_labels.values():
-            label.setStyleSheet(_ERROR_STYLE)
+            label.setStyleSheet(theme.error_qss())
             label.setWordWrap(True)
             label.hide()
 

@@ -8,7 +8,6 @@
 from __future__ import annotations
 
 from PySide6.QtCore import Qt, Signal
-from PySide6.QtGui import QColor
 from PySide6.QtWidgets import (
     QFileDialog,
     QHBoxLayout,
@@ -23,6 +22,7 @@ from PySide6.QtWidgets import (
 )
 
 from bond_profit.infrastructure.backup import BackupInfo
+from bond_profit.ui import theme
 
 _COLUMNS = ("备份时间", "类型", "记录数", "数据库版本", "验证状态", "文件")
 _KIND_LABELS = {"auto": "自动", "manual": "手动", "protected": "保护"}
@@ -115,7 +115,7 @@ class BackupPage(QWidget):
                         Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
                     )
                 if not info.verified:
-                    item.setForeground(QColor(Qt.GlobalColor.red))
+                    item.setForeground(theme.error_color())
                 self.table.setItem(row, col, item)
         self.count_label.setText(
             f"共 {len(self._infos)} 份备份（自动备份保留最近 30 份，"

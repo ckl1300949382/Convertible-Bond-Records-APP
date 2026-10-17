@@ -376,9 +376,8 @@ class MainWindow(QMainWindow):
         application = QApplication.instance()
         if application is not None:
             theme.apply_theme(application, mode)
-        label_color = theme.chart_label_color(mode)
-        self.monthly_chart.set_label_color(label_color)
-        self.yearly_chart.set_label_color(label_color)
+        self.monthly_chart.apply_mode(mode)
+        self.yearly_chart.apply_mode(mode)
         self.theme_button.setText("深色" if mode == "dark" else "浅色")
         self.theme_button.setToolTip("当前为{}主题，点击切换".format(
             "深色" if mode == "dark" else "浅色"
@@ -389,6 +388,7 @@ class MainWindow(QMainWindow):
     def _on_toggle_theme(self) -> None:
         current = "dark" if self.theme_button.text() == "深色" else "light"
         self._apply_theme_mode("light" if current == "dark" else "dark")
+        self.refresh_records()  # 收益列盈亏前景色随主题刷新
 
     # ---- 窗口状态（§3.6） ------------------------------------------------------
 
@@ -434,6 +434,11 @@ class MainWindow(QMainWindow):
                     item.setTextAlignment(
                         Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
                     )
+                if col == 5:  # 单笔收益列：盈利红 / 亏损绿 / 零中性（中国金融习惯）
+                    if profit > 0:
+                        item.setForeground(theme.profit_color())
+                    elif profit < 0:
+                        item.setForeground(theme.loss_color())
                 self.table.setItem(row, col, item)
 
         last_page = max(1, -(-self._total // _PAGE_SIZE))
