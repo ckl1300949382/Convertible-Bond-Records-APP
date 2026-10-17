@@ -23,18 +23,20 @@ ui ──▶ application ──▶ domain
 
 ## 现有模块
 
-- `app.py`：QApplication 装配与启动入口，仅装配不含业务
+- `app.py`：装配入口 + 单实例控制（QLocalServer/QLocalSocket，§3.6）
+- `application/sales_service.py`：校验→事务写入协调层，UI 唯一入口；数据库失败转中文提示并记日志
+- `domain/`：models（SaleRecord）、validation（7 项校验+标准化）、calculations（收益+格式化）、money（元↔分）
+- `infrastructure/database.py`：SQLite 连接、建表、user_version=1、路径可注入
+- `infrastructure/repository.py`：sales 表 CRUD、参数化 SQL、事务边界、允许重复录入
 - `infrastructure/logging.py`：RotatingFileHandler 日志，目录可注入（测试用临时目录）
-- `ui/main_window.py`：最小主窗口
+- `ui/main_window.py`：记录表格 + 新增/编辑/删除
+- `ui/record_dialog.py`：新增/编辑弹窗（校验提示、失败保留输入、Esc 确认放弃）
 
 ## 关键设计决策
 
-1. **金额精度**（阶段 1 实现）：数据库存定点整数分（`sale_price_cents`），业务层用 `Decimal`，禁止二进制浮点计算金钱。
-2. **日志目录可注入**：`setup_logging(log_dir=None)` 默认写 `%LOCALAPPDATA%/ConvertibleBondProfit/logs/`，测试传 `tmp_path` 隔离，满足测试不碰真实数据红线。
-3. **src 布局**：源码在 `src/`，通过 `pip install -e .` 可编辑安装，`python -m bond_profit` 运行。
-4. **打包**：PyInstaller onedir + windowed，spec 与中间产物放 `build/`（不入 Git）。
-
-## 数据库（阶段 1 起）
-
-- 位置：`%LOCALAPPDATA%/ConvertibleBondProfit/data/app.db`
-- 版本管理：`PRAGMA user_version`，迁移前强制保护备份
+1. **金额精度**：数据库存定点整数分（`sale_price_cents`），业务层用 `Decimal`（`domain/money.py` 转换），禁止二进制浮点计算金钱。
+2. **重复录入**（§2.3）：不对业务字段建唯一约束，两条完全相同记录均可保存；数据库 CHECK 约束与应用层校验互补兜底。
+3. **日志目录可注入**：`setup_logging(log_dir=None)`；测试传 `tmp_path` 隔离。
+4. **数据库路径可注入**：`connect(db_path=None)` 默认 `%LOCALAPPDATA%/ConvertibleBondProfit/data/app.db`；测试全部用临时路径。
+5. **src 布局**：源码在 `src/`，`pip install -e .` 可编辑安装，`python -m bond_profit` 运行。
+6. **打包**：PyInstaller onedir + windowed，spec 与中间产物放 `build/`（不入 Git）。

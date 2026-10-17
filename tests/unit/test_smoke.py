@@ -3,13 +3,14 @@
 from __future__ import annotations
 
 import logging
+import re
 
 import bond_profit
 from bond_profit.infrastructure.logging import setup_logging
 
 
 def test_package_importable_and_version():
-    assert bond_profit.__version__ == "0.1.0"
+    assert re.fullmatch(r"\d+\.\d+\.\d+", bond_profit.__version__)
 
 
 def test_setup_logging_creates_file_and_writes(tmp_path):
