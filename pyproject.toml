@@ -18,6 +18,9 @@ dev = [
     "pytest-qt>=4.4",
     "pytest-timeout>=2.3",
 ]
+build = [
+    "pyinstaller>=6.10",
+]
 
 [tool.setuptools.packages.find]
 where = ["src"]
