@@ -24,6 +24,7 @@ from bond_profit.infrastructure import database
 from bond_profit.infrastructure.backup import (
     BackupInfo,
     create_backup,
+    list_backups,
     read_backup_info,
 )
 from bond_profit.infrastructure.backup_state import StateStore
@@ -103,6 +104,15 @@ class BackupService:
             state.dirty = False
             self._state_store.save(state)
         return info
+
+    # ---- 备份列表 ------------------------------------------------------------
+
+    def list_backups(self) -> list[BackupInfo]:
+        """列出自动与保护备份（最新在前）。
+
+        手动备份在用户自选目录，不纳入本列表（已批准默认决策②）。
+        """
+        return list_backups(self._auto_dir, self._protected_dir)
 
     # ---- 手动恢复（§6.4） ----------------------------------------------------
 

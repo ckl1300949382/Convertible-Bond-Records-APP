@@ -121,7 +121,7 @@ def main() -> int:
         # BAK-03：醒目但不阻断，允许重试；批次 16 接入备份页重试入口
         logger.warning("启动自动备份失败，可在备份页重试", exc_info=True)
 
-    window = MainWindow(service, excel_service)
+    window = MainWindow(service, excel_service, backup_service=backup_service)
     _start_single_instance_server(window)
 
     window.show()

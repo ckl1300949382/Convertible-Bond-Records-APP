@@ -131,3 +131,47 @@
 - 预览对话框业务列以文本单元格展示，不支持行内排序/筛选（文档未要求）。
 - 模板预设前 200 行代码列文本格式；超出后需用户自行设置单元格格式为文本。
 - 导入文件级错误（打不开/缺列）与错误行的原因展示均为中文，技术细节仅写日志。
+
+# 阶段 4 验收清单（版本 0.5.0）
+
+范围：§5.3 版本迁移、§6.1–6.5 备份/恢复/异常处理、§9 阶段 4 里程碑、§10.4 测试矩阵 BAK-01～06 / RES-01～03 / MIG-01～03。
+
+## 自动验证（Agent 已执行，224 passed in 7.10s）
+
+| # | 验收项 | 对应测试 | 实际结果 | 是否通过 |
+|---|---|---|---|---|
+| A1 | BAK-01：当天首次成功后不再更新自动备份 | test_first_run_backs_up_once_per_day | 当天第二次检查返回 None、仍 1 份 | 通过 |
+| A2 | BAK-02：跨天保持运行且有变更 → 新备份 | test_cross_day_backup_after_changes | 次日检查生成第 2 份 | 通过 |
+| A3 | BAK-03：备份失败不计当天成功次数、可重试 | test_failed_backup_keeps_state_and_retries、test_auto_check_failure_shows_status_message | 状态不变（未记日期/仍脏）；重试成功计数；UI 状态栏提示不阻断 | 通过 |
+| A4 | BAK-04：第 31 份成功后只清理最旧自动备份 | test_prune_removes_only_oldest、test_auto_backup_keeps_30_after_31st | 显式 mtime 确定性删除最旧一份（含 manifest）；31→30 且最新存活 | 通过 |
+| A5 | BAK-05：备份失败不删除旧备份、无临时残留 | test_failed_backup_keeps_old_backups | 目录内容与失败前一致，无 .tmp 文件 | 通过 |
+| A6 | BAK-06：手动/升级/恢复保护备份不参与自动清理 | test_protected_and_manual_never_pruned | 各 35 份无一被删 | 通过 |
+| A7 | 备份快照一致性与 manifest | test_backup_creates_verified_snapshot、test_manifest_metadata | 快照内容与源库一致；元数据（类型/记录数/库版本）正确 | 通过 |
+| A8 | 列表以实际文件检查为准（§6.3） | test_list_reads_actual_file_over_manifest、test_corrupt_file_reported_unverified | manifest 记录数被篡改仍显示实际值；损坏文件标记「未通过」 | 通过 |
+| A9 | RES-01：损坏备份拒绝恢复 | test_restore_rejects_corrupt_backup | RestoreError；原数据不变；未创建保护备份（校验先行） | 通过 |
+| A10 | RES-02：过新版本备份拒绝恢复 | test_restore_rejects_newer_version_backup | 提示先升级程序；原数据不变 | 通过 |
+| A11 | RES-03：恢复中断原数据可恢复、保护副本存在 | test_failed_restore_keeps_protection_and_live_data | 保护副本 1 份；当前数据未改动；修复后重试成功 | 通过 |
+| A12 | 恢复成功替换数据 + 三重校验 | test_restore_replaces_active_data | 记录数、收益汇总（20000 分）与备份一致后写回；列表/表格/状态同步 | 通过 |
+| A13 | MIG-01：旧版数据库升级成功、记录不丢 | test_old_db_migrates_successfully | user_version 1→2；2 条记录保留；新列生效 | 通过 |
+| A14 | MIG-02：迁移失败停止升级、原数据保留 | test_migration_failure_stops_and_preserves_data | 版本号不变、记录保留、成功执行过的 DDL 已整体回滚 | 通过 |
+| A15 | MIG-03：旧程序打开过新数据库拒绝写入 | test_too_new_db_refused_without_writes、app 预检分支 | DatabaseTooNewError；数据与版本号不变；任何写操作在版本检查之后 | 通过 |
+| A16 | 损坏库启动保护（§6.5） | test_corrupt_db_refuses_to_open_and_file_preserved | 拒绝打开；文件字节级未改动；不静默建空库 | 通过 |
+| A17 | 自动备份策略门控 | test_no_backup_across_days_without_changes、test_manual_backup_clears_dirty、test_state_store_corrupt_falls_back_to_safe_defaults | 无变更跨天不备份；手动备份后清脏；状态文件损坏按安全默认 | 通过 |
+| A18 | 备份 UI（§6 / §9 第 9 项） | tests/ui/test_backup_page.py 14 项 | 手动备份全流程、列表列与类型映射、恢复确认 Yes/No、恢复成功后总览刷新、30 分钟定时器启动 | 通过 |
+
+## 人工抽检（真实环境行为，建议复核）
+
+| # | 操作步骤 | 预期结果 | 备注 |
+|---|---|---|---|
+| G1 | 备份与恢复页 → 手动备份到其他磁盘目录 | 目录中出现 app_*.db + manifest；列表与提示正常 | 文件对话框交互留人工 |
+| G2 | 录入几条记录 → 重启程序 | 启动时自动备份当天一份；当天再改再重启不重复生成 | 依赖真实 %LOCALAPPDATA% 目录 |
+| G3 | 备份列表选择一份旧备份 → 恢复 → 查看总览 | 确认对话框含替换警告；恢复后表格/卡片/图表刷新为备份时点数据 | 恢复目标建议用测试数据 |
+| G4 | 状态栏观察自动备份提示 | 备份完成/失败均有 10 秒提示，不影响录入操作 | BAK-03 视觉确认 |
+
+## 已知问题
+
+- 自动备份仅在启动时与每 30 分钟检查一次（§6.1 建议 30 分钟）；数据变更后到下一次检查之间存在无备份窗口，属文档允许范围。
+- 手动备份文件存放在用户自选目录，不出现在「备份与恢复」列表中（已批准默认决策②）；如需恢复需将该文件放入 backups/auto 或 backups/protected 目录，或按文档 §6.4 由用户自选路径导入（当前版本通过放置目录实现）。
+- 迁移注册表当前为空（schema_version=1 为唯一版本）；迁移路径由测试注入假步骤验证（MIG-01/02），真实迁移将在未来版本发布时登记。
+- 备份/恢复的完整性校验使用 SQLite integrity_check；极端磁盘故障（备份文件与源库同时损坏）不在防护范围内，请按文档建议将手动备份存放到其他磁盘。
+

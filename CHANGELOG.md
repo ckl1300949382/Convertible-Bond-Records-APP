@@ -3,6 +3,28 @@
 格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)。
 程序版本采用 `MAJOR.MINOR.PATCH`，数据库 schema_version 独立递增（阶段 1 起）。
 
+## [0.5.0] - 2026-10-17 - 阶段 4：备份、恢复与版本迁移
+
+- 批次 16（备份 UI + 收官）：
+  - ui/backup_page.py：备份与恢复页（手动备份到自选目录、备份列表含时间/类型/记录数/库版本/验证状态、恢复确认对话框含数据替换警告、立即检查自动备份作为失败重试入口）；按钮仅发射信号，由主窗口槽内调用服务（延续批次 11 信号式接线约定）
+  - 主窗口：左侧导航「总览 / 数据管理 / 备份与恢复」；QTimer 每 30 分钟检查自动备份（§6.1），失败仅在状态栏提示不阻断录入（BAK-03）；恢复成功后 refresh_records 同步刷新表格/卡片/图表（§66）
+  - 版本号 0.4.0 → 0.5.0；阶段 4 验收清单见 docs/ACCEPTANCE_CHECKLIST.md；全套 224 项测试通过
+- 批次 15（恢复流程 + 版本迁移）：
+  - database.py：MIGRATIONS 逐版本迁移注册表（显式 BEGIN 事务——Python sqlite3 隐式事务只覆盖 DML、DDL 会自动提交，不显式开事务无法整体回滚；失败抛 MigrationError 原数据保留）；inspect_database 只读预检；DatabaseTooNewError（MIG-03 旧程序拒绝写入新库，任何写操作都在版本检查之后）
+  - backup_service.restore_from_backup（§6.4）：实际文件校验（RES-01 损坏拒绝 / RES-02 过新拒绝）→ 恢复前保护备份 → 临时位置恢复 → 按需迁移 → 完整性/记录数/收益汇总三重比对 → 官方备份 API 写回活动连接（SQLite 事务保证，中断自动回滚 RES-03）；成功后置脏并记录当日（次日生成新自动备份）
+  - app.py 启动编排：预检 → 过新弹窗退出 → 迁移前先创建并验证升级前保护备份（失败停止启动）→ connect 三类异常分别中文提示
+  - 测试：迁移 4 项（含 DDL 成功后中途失败整体回滚）、恢复 6 项；210 项通过
+- 批次 14（自动备份策略 + 启动健康检查）：
+  - infrastructure/backup_state.py：state.json 持久化脏标记与最近自动备份日期；缺失/损坏按安全默认（视为有变更，宁可多备不漏备）
+  - application/backup_service.py：自动备份策略——当天已成功跳过（BAK-01）、无变更跳过（§6.1）、跨天且有变更生成（BAK-02）、失败状态不变可重试（BAK-03）；手动备份成功后清脏（数据已有有效快照）
+  - database.py：启动时先 integrity_check 再写入；损坏抛 DatabaseCorruptError，原文件原样保留，不静默建空库（§6.5）
+  - sales_service/excel_service 成功写入触发 on_change 回调驱动脏标记；回调异常只记日志不影响记录
+  - app.py：装配备份服务与脏标记接线；启动自动备份失败仅告警
+  - 测试：备份策略 7 项、数据库 3 项、回调 2 项；200 项通过
+- 批次 13（备份核心层，无新增第三方依赖）：
+  - infrastructure/backup.py：SQLite 官方备份 API 一致性快照 → 临时文件 → integrity_check + 记录数校验 → 同目录原子发布；文件名含时间与随机后缀；manifest JSON 元数据（读取列表以实际文件检查为准，损坏文件标记未通过）；保留策略仅清理 auto 目录——第 31 份成功落盘后才删最旧一份（含其 manifest），protected/manual 永不清理，不误删无关文件（BAK-04/05/06）
+  - 测试：备份核心 13 项；187 项通过
+
 ## [0.4.0] - 2026-10-17 - 阶段 3：Excel 导入导出
 
 - 批次 12：阶段 3 收尾——验收清单 XLS-01～10 逐项对照（docs/ACCEPTANCE_CHECKLIST.md）、ARCHITECTURE 更新、版本号 0.4.0

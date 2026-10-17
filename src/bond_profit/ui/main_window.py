@@ -1,7 +1,8 @@
-"""主窗口：左侧导航（总览 / 数据管理）+ 页面栈。
+"""主窗口：左侧导航（总览 / 数据管理 / 备份与恢复）+ 页面栈。
 
 总览页：记录表格与增删改（阶段 1）、统计卡片、搜索/筛选/排序/分页（§3.2/§3.3）、
 图表（批次 7）。数据管理页（批次 10）：Excel 模板下载与导入（§4）。
+备份与恢复页（批次 16）：手动备份、备份列表、恢复、自动备份检查（§6）。
 """
 
 from __future__ import annotations
@@ -9,7 +10,7 @@ from __future__ import annotations
 from decimal import Decimal
 
 import bond_profit
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Qt, QTimer
 from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtWidgets import (
     QApplication,
@@ -30,12 +31,16 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from bond_profit.application.backup_service import BackupService, RestoreError
 from bond_profit.application.excel_service import ExcelService
 from bond_profit.application.sales_service import SalesService
 from bond_profit.domain.calculations import format_money, profit_per_record
+from bond_profit.domain.money import cents_to_yuan
 from bond_profit.domain.models import RecordQuery, SaleRecord
-from bond_profit.ui.bar_chart import BarChart
+from bond_profit.infrastructure.backup import BackupError
 from bond_profit.ui import prefs, theme
+from bond_profit.ui.backup_page import BackupPage
+from bond_profit.ui.bar_chart import BarChart
 from bond_profit.ui.data_management import DataManagementPage
 from bond_profit.ui.record_dialog import RecordDialog
 
@@ -55,14 +60,18 @@ _PAGE_SIZE = 20  # 每页 20 条（§3.3）
 
 
 class MainWindow(QMainWindow):
+    _AUTO_BACKUP_INTERVAL_MS = 30 * 60 * 1000  # §6.1：运行期间每 30 分钟检查一次
+
     def __init__(
         self,
         service: SalesService,
         excel_service: ExcelService,
         settings_path: str | None = None,
+        backup_service: BackupService | None = None,
     ) -> None:
         super().__init__()
         self._service = service
+        self._backup = backup_service
         self._settings = prefs.open_settings(settings_path)
         self._records: list[SaleRecord] = []
         self._page = 1
@@ -84,7 +93,7 @@ class MainWindow(QMainWindow):
 
         # ---- 左侧导航（§3.1 总览 / 数据管理） --------------------------------
         self.nav_list = QListWidget()
-        self.nav_list.addItems(["总览", "数据管理"])
+        self.nav_list.addItems(["总览", "数据管理", "备份与恢复"])
         self.nav_list.setFixedWidth(140)
         root.addWidget(self.nav_list)
 
@@ -233,6 +242,13 @@ class MainWindow(QMainWindow):
         self.data_page = DataManagementPage(excel_service)
         self.data_page.export_filtered_requested.connect(self._on_export_filtered)
         self.pages.addWidget(self.data_page)
+        # 备份与恢复页（批次 16 / §6）：信号式接线，页面不持有服务对象
+        self.backup_page = BackupPage()
+        self.backup_page.manual_backup_requested.connect(self._on_manual_backup)
+        self.backup_page.restore_requested.connect(self._on_restore_backup)
+        self.backup_page.check_requested.connect(self._on_auto_backup_check)
+        self.backup_page.refresh_requested.connect(self._refresh_backup_list)
+        self.pages.addWidget(self.backup_page)
 
         self.setCentralWidget(central)
 
@@ -259,20 +275,84 @@ class MainWindow(QMainWindow):
         new_record_shortcut = QShortcut(QKeySequence("Ctrl+N"), self)
         new_record_shortcut.activated.connect(self._on_add)
 
+        # 自动备份定期检查（§6.1）；未配置备份服务时（部分测试场景）不启动
+        self._backup_timer = QTimer(self)
+        self._backup_timer.setInterval(self._AUTO_BACKUP_INTERVAL_MS)
+        self._backup_timer.timeout.connect(self._on_auto_backup_check)
+        if backup_service is not None:
+            self._backup_timer.start()
+
         # 应用已保存的主题（§3.6：首次跟随 Windows，手动切换后记住选择）
         self._apply_theme_mode(prefs.resolve_theme(self._settings), save=False)
 
         self.refresh_records()
+        self._refresh_backup_list()  # 初始填充备份列表（未配置备份服务时为空操作）
 
     # ---- 导航 -----------------------------------------------------------------
 
     def _on_nav_changed(self, index: int) -> None:
-        """左侧导航切换页面（总览 / 数据管理）。"""
+        """左侧导航切换页面（总览 / 数据管理 / 备份与恢复）。"""
         self.pages.setCurrentIndex(index)
 
     def _on_export_filtered(self) -> None:
         """按总览页当前搜索/筛选条件导出全集（§4.5 XLS-09）。"""
         self.data_page.run_export(self._build_query())
+
+    # ---- 备份与恢复（§6） -------------------------------------------------------
+
+    def _refresh_backup_list(self) -> None:
+        if self._backup is None:
+            return
+        self.backup_page.populate_backups(self._backup.list_backups())
+
+    def _on_manual_backup(self, dest_dir: str) -> None:
+        if self._backup is None:
+            return
+        try:
+            info = self._backup.run_manual_backup(dest_dir)
+        except BackupError as exc:
+            QMessageBox.warning(self, "备份失败", str(exc))
+            return
+        self._refresh_backup_list()
+        QMessageBox.information(
+            self,
+            "备份成功",
+            f"手动备份已创建：{info.path}\n包含 {info.record_count} 条记录。",
+        )
+
+    def _on_auto_backup_check(self) -> None:
+        if self._backup is None:
+            return
+        try:
+            info = self._backup.run_auto_backup()
+        except BackupError as exc:
+            # BAK-03：醒目但不阻断录入；备份页「立即检查」可重试
+            self.statusBar().showMessage(f"自动备份失败：{exc}", 10000)
+            return
+        self._refresh_backup_list()
+        if info is not None:
+            self.statusBar().showMessage(
+                f"自动备份完成：{info.created_at}（{info.record_count} 条记录）",
+                10000,
+            )
+
+    def _on_restore_backup(self, path: str) -> None:
+        if self._backup is None:
+            return
+        try:
+            report = self._backup.restore_from_backup(path)
+        except (BackupError, RestoreError) as exc:
+            QMessageBox.warning(self, "恢复失败", str(exc))
+            return
+        self.refresh_records()  # §66：恢复后表格、卡片、图表同步刷新
+        self._refresh_backup_list()
+        QMessageBox.information(
+            self,
+            "恢复成功",
+            f"已从备份恢复 {report.record_count} 条记录，"
+            f"累计收益 {format_money(cents_to_yuan(report.total_profit_cents))} 元。\n"
+            f"恢复前的保护备份：{report.protected.path.name}",
+        )
 
     # ---- 主题（§3.6） ---------------------------------------------------------
 
