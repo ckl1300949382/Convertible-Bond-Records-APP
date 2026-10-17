@@ -94,3 +94,39 @@ def test_write_failure_returns_failure_and_saves_nothing(service):
 def test_delete_missing_record_raises(service):
     with pytest.raises(RepositoryError):
         service.delete_record(9999)
+
+
+# ---- 分页查询（§3.3，页码钳制） ---------------------------------------------
+
+from bond_profit.domain.models import RecordQuery  # noqa: E402
+
+
+def test_list_page_returns_total_and_page(service):
+    for i in range(21):
+        service.create_record(make_record(bond_name=f"转债{i:02d}号"))
+    result = service.list_page(RecordQuery(), page=1, page_size=20)
+    assert len(result.records) == 20
+    assert result.total == 21
+    assert result.page == 1
+
+
+def test_list_page_clamps_page_beyond_last(service):
+    for i in range(21):
+        service.create_record(make_record(bond_name=f"转债{i:02d}号"))
+    result = service.list_page(RecordQuery(), page=99, page_size=20)
+    assert result.page == 2
+    assert len(result.records) == 1
+
+
+def test_list_page_clamps_page_below_one(service):
+    service.create_record(make_record())
+    result = service.list_page(RecordQuery(), page=0, page_size=20)
+    assert result.page == 1
+    assert len(result.records) == 1
+
+
+def test_list_page_empty_database(service):
+    result = service.list_page(RecordQuery(), page=1, page_size=20)
+    assert result.records == []
+    assert result.total == 0
+    assert result.page == 1

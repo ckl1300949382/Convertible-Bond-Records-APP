@@ -23,3 +23,18 @@ class SaleRecord:
     id: Optional[int] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
+
+
+@dataclass
+class RecordQuery:
+    """记录列表查询条件（§3.3 搜索/筛选/排序）。
+
+    keyword 对名称或代码做包含匹配；year/month 为筛选（month 需配合 year）；
+    sort_key 只允许 date/price/profit；默认最新日期在前（同日期按 id 降序）。
+    """
+
+    keyword: str = ""
+    year: Optional[int] = None
+    month: Optional[int] = None
+    sort_key: str = "date"
+    descending: bool = True

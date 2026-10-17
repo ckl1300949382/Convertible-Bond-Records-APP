@@ -7,9 +7,10 @@ UI 层只与本模块对话，不直接访问仓储；
 from __future__ import annotations
 
 import logging
+import math
 from dataclasses import dataclass, field
 
-from bond_profit.domain.models import SaleRecord
+from bond_profit.domain.models import RecordQuery, SaleRecord
 from bond_profit.domain.validation import normalize, validate_record
 from bond_profit.infrastructure.repository import RepositoryError, SalesRepository
 
@@ -22,6 +23,13 @@ class ServiceResult:
     errors: list[str] = field(default_factory=list)  # 字段校验错误
     record: SaleRecord | None = None
     failure: str | None = None  # 数据库失败时的用户提示
+
+
+@dataclass
+class PageResult:
+    records: list[SaleRecord]
+    total: int  # 符合条件的总数
+    page: int  # 钳制后的实际页码（从 1 开始）
 
 
 class SalesService:
@@ -42,6 +50,22 @@ class SalesService:
 
     def list_records(self) -> list[SaleRecord]:
         return self._repository.list_all()
+
+    def list_page(
+        self, query: RecordQuery, page: int, page_size: int
+    ) -> PageResult:
+        """分页查询（§3.3）。页码超出范围时自动钳制，
+        删除当前页最后一条后页码随之调整。"""
+        total = self._repository.count_filtered(query)
+        last_page = max(1, math.ceil(total / page_size))
+        current = min(max(1, page), last_page)
+        records = self._repository.list_page(
+            query, offset=(current - 1) * page_size, limit=page_size
+        )
+        return PageResult(records=records, total=total, page=current)
+
+    def distinct_years(self) -> list[int]:
+        return self._repository.distinct_years()
 
     # ---- 内部 -------------------------------------------------------------
 

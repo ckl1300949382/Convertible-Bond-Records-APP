@@ -135,6 +135,123 @@ def test_list_all_orders_date_desc_then_id_desc(repo):
     assert ids == [newer_later.id, same_b.id, same_a.id, older.id]
 
 
+# ---- 分页查询（§3.3 搜索/筛选/排序，UI-01 数据层） --------------------------
+
+from bond_profit.domain.models import RecordQuery  # noqa: E402
+
+
+def seed_page_records(repo) -> None:
+    """25 条记录：跨 2025/2026 两年，价格与数量各不相同。"""
+    for i in range(20):
+        repo.add(
+            make_record(
+                bond_name=f"转债{i:02d}号",
+                bond_code=f"1234{i:02d}",
+                sale_date=date(2026, 1, i % 12 + 1),
+                sale_price=Decimal(f"10{i}.00"),
+                quantity=i + 1,
+            )
+        )
+    repo.add(make_record(bond_name="平银转债", bond_code="000000", sale_date=date(2025, 12, 31)))
+    repo.add(make_record(bond_name="中信转债", bond_code="111111", sale_date=date(2025, 6, 1)))
+    repo.add(make_record(bond_name="浦发转债", bond_code="222222", sale_date=date(2026, 3, 1)))
+    repo.add(make_record(bond_name="光大同号", bond_code="333333", sale_date=date(2026, 3, 15)))
+    repo.add(make_record(bond_name="苏行转债", bond_code="444444", sale_date=date(2026, 7, 1)))
+
+
+def test_list_page_limit_and_offset(repo):
+    seed_page_records(repo)
+    query = RecordQuery()
+    first = repo.list_page(query, offset=0, limit=20)
+    second = repo.list_page(query, offset=20, limit=20)
+    assert len(first) == 20
+    assert len(second) == 5
+    assert {r.id for r in first}.isdisjoint({r.id for r in second})
+
+
+def test_list_page_default_order_matches_list_all(repo):
+    seed_page_records(repo)
+    query = RecordQuery()
+    paged_ids = [r.id for r in repo.list_page(query, 0, 100)]
+    assert paged_ids == [r.id for r in repo.list_all()]
+
+
+def test_count_filtered_no_filter(repo):
+    seed_page_records(repo)
+    assert repo.count_filtered(RecordQuery()) == 25
+
+
+def test_keyword_matches_name_or_code(repo):
+    seed_page_records(repo)
+    assert repo.count_filtered(RecordQuery(keyword="平银")) == 1
+    assert repo.count_filtered(RecordQuery(keyword="111111")) == 1
+    # 20 条「转债XX号」+ 平银转债/中信转债/浦发转债/苏行转债；光大同号不含
+    assert repo.count_filtered(RecordQuery(keyword="转债")) == 24
+
+
+def test_keyword_like_wildcards_are_escaped(repo):
+    repo.add(make_record(bond_name="100%稳赚转债"))
+    repo.add(make_record(bond_name="A_1转债"))
+    # 「%」按字面匹配，不展开为通配符
+    assert repo.count_filtered(RecordQuery(keyword="100%稳赚")) == 1
+    assert repo.count_filtered(RecordQuery(keyword="_1转")) == 1
+    assert repo.count_filtered(RecordQuery(keyword="稳赚转债")) == 1
+
+
+def test_year_filter_crosses_years_correctly(repo):
+    seed_page_records(repo)
+    assert repo.count_filtered(RecordQuery(year=2025)) == 2
+    assert repo.count_filtered(RecordQuery(year=2026)) == 23
+
+
+def test_year_month_filter(repo):
+    seed_page_records(repo)
+    assert repo.count_filtered(RecordQuery(year=2026, month=3)) == 2
+    assert repo.count_filtered(RecordQuery(year=2025, month=12)) == 1
+    assert repo.count_filtered(RecordQuery(year=2026, month=2)) == 0
+
+
+def test_month_without_year_means_all_year(repo):
+    seed_page_records(repo)
+    assert repo.count_filtered(RecordQuery(month=3)) == 25  # month 仅在选定年份时生效
+
+
+def test_sort_by_price_and_profit(repo):
+    repo.add(make_record(sale_price=Decimal("120.00"), quantity=10))  # 收益 200
+    repo.add(make_record(sale_price=Decimal("130.00"), quantity=10))  # 收益 300
+    repo.add(make_record(sale_price=Decimal("110.00"), quantity=50))  # 收益 500
+
+    by_price = repo.list_page(RecordQuery(sort_key="price"), 0, 10)
+    assert by_price[0].sale_price == Decimal("130.00")
+
+    by_profit = repo.list_page(RecordQuery(sort_key="profit"), 0, 10)
+    assert by_profit[0].sale_price == Decimal("110.00")  # 收益最高在前
+
+    by_profit_asc = repo.list_page(RecordQuery(sort_key="profit", descending=False), 0, 10)
+    assert by_profit_asc[0].sale_price == Decimal("120.00")
+
+
+def test_sort_fallback_for_unknown_key(repo):
+    seed_page_records(repo)
+    unknown = repo.list_page(RecordQuery(sort_key="1; DROP TABLE sales"), 0, 100)
+    assert [r.id for r in unknown] == [r.id for r in repo.list_all()]
+    assert repo.count() == 25  # 表未被破坏
+
+
+def test_filtered_sort_combination_stable(repo):
+    seed_page_records(repo)
+    query = RecordQuery(keyword="转债", year=2026, month=1, sort_key="price")
+    records = repo.list_page(query, 0, 20)
+    prices = [r.sale_price for r in records]
+    assert prices == sorted(prices, reverse=True)
+    assert all(r.sale_date.year == 2026 and r.sale_date.month == 1 for r in records)
+
+
+def test_distinct_years_desc(repo):
+    seed_page_records(repo)
+    assert repo.distinct_years() == [2026, 2025]
+
+
 # ---- 写入失败不假装成功（§5.2 / REC-05 数据层） -----------------------------
 
 
