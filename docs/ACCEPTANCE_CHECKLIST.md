@@ -92,3 +92,42 @@
 
 - 月度/年度图为自绘柱状图（QtCharts 的 QBarSet 无法逐柱按盈亏着色，按计划走回退方案），不支持缩放/悬浮提示，属文档范围外的增强项。
 - 独立「收益统计」页按用户决策留待后续阶段，当前图表在首页。
+
+---
+
+# 阶段 3 验收清单（版本 0.4.0）
+
+范围：§4.1–4.5 Excel 模板/解析/去重/预览/导入事务/导出、§3.1 导航、§9 阶段 3 里程碑、§10.3 测试矩阵 XLS-01～10。
+
+## 自动验证（Agent 已执行，174 passed in 5.44s）
+
+| # | 验收项 | 对应测试 | 实际结果 | 是否通过 |
+|---|---|---|---|---|
+| E1 | XLS-01：六字段重复的两行 | test_xls01_in_file_duplicates_skip | 首行「可导入」，后行「重复跳过」，预计新增 1 笔 | 通过 |
+| E2 | XLS-02：与数据库完全相同 | test_xls02_existing_db_duplicate_skips | 跳过且不计入净收益变化 | 通过 |
+| E3 | XLS-03：空备注/空串/纯空格去重 | test_xls03_note_blank_variants_same_key | 备注空值统一后视为相同 | 通过 |
+| E4 | XLS-04：任一行错误整批禁止 | test_xls04_any_error_blocks_commit、test_xls04_field_error_reasons | 逐行中文原因+真实 Excel 行号；commit_import 对 has_errors 抛「存在错误行」拒绝 | 通过 |
+| E5 | XLS-05：数据库异常全部回滚 | test_xls05_failed_write_rolls_back_all（quantity=0 触发 CHECK） | RepositoryError 后库内无任何记录 | 通过 |
+| E6 | XLS-06：列顺序打乱按列名匹配 | test_xls06_shuffled_column_order | 正确识别；缺必需列报中文错误（test_missing_required_column_raises） | 通过 |
+| E7 | XLS-07：Excel 日期单元格与 YYYY-MM-DD 文本 | test_preview_valid_rows_both_date_forms | 均识别；完全空白行跳过且行号真实 | 通过 |
+| E8 | XLS-08：数值单元格丢失前导零 | test_xls08_lost_leading_zero_rejected | 拒绝猜测补零，提示改为文本格式修正源文件 | 通过 |
+| E9 | XLS-09：筛选导出全集跨页 | test_export_filtered_full_set、test_export_all_with_profit_column | 关键词全集不受分页限制；收益列正确、代码文本格式保留前导零 | 通过 |
+| E10 | XLS-10：含亏损批次净收益 | test_xls10_loss_batch_net_profit | +300.00 −15.00 → 净收益变化 +285.00，仅计新增 | 通过 |
+| E11 | 导入事务全有或全无 + 提交前重查去重 | test_commit_success、test_commit_rechecks_duplicates_after_preview | 单事务提交；预览后库内新增同键记录仍正确跳过 | 通过 |
+| E12 | 导入预览 UI（§4.4） | test_import_preview_dialog 4 项、test_data_management 7 项 | 统计行/逐行状态/错误行禁用「开始导入」/提交成功与失败保持打开均符合；导航「总览/数据管理」切换正常 | 通过 |
+
+## 人工抽检（openpyxl 与真实 Excel 兼容性，建议复核）
+
+| # | 操作步骤 | 预期结果 | 备注 |
+|---|---|---|---|
+| F1 | 数据管理页下载模板 → 用 Excel/WPS 打开 → 手工填写含代码 012345 的行 → 导入 | 模板含「填写说明」页；代码前导零保留；预览显示可导入 | 文件对话框与真实 Excel 交互留人工 |
+| F2 | 导出全部记录 → 用 Excel 打开 | 七列（六字段+收益）；代码列文本；日期/金额显示格式正确 | 视觉格式人工确认 |
+| F3 | 导入成功后查看总览 | 卡片/图表/表格自动刷新 | 信号已自动化验证，视觉效果人工确认 |
+| F4 | 预览对话框观察颜色 | 错误行红色、重复跳过琥珀色、错误行「开始导入」置灰 | 颜色人工确认 |
+
+## 已知问题
+
+- 导出收益列为 Excel 数值（Decimal→float 序列化，仅展示；两位小数显示格式），导入时不读取该列。
+- 预览对话框业务列以文本单元格展示，不支持行内排序/筛选（文档未要求）。
+- 模板预设前 200 行代码列文本格式；超出后需用户自行设置单元格格式为文本。
+- 导入文件级错误（打不开/缺列）与错误行的原因展示均为中文，技术细节仅写日志。

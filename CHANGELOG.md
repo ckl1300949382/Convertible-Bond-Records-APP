@@ -3,8 +3,9 @@
 格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)。
 程序版本采用 `MAJOR.MINOR.PATCH`，数据库 schema_version 独立递增（阶段 1 起）。
 
-## [未发布] - 阶段 3：Excel 导入导出
+## [0.4.0] - 2026-10-17 - 阶段 3：Excel 导入导出
 
+- 批次 12：阶段 3 收尾——验收清单 XLS-01～10 逐项对照（docs/ACCEPTANCE_CHECKLIST.md）、ARCHITECTURE 更新、版本号 0.4.0
 - 批次 11（导出，XLS-09）：
   - repository/sales_service 新增 list_filtered：按搜索/年月条件取全集，不受分页限制
   - excel_service.export_records：导出 .xlsx——六业务字段 + 软件计算的「收益」列（导入时不作为可信来源）；代码列文本格式保留前导零，日期 yyyy-mm-dd、金额 0.00 显示格式；无匹配记录时不写文件并提示
