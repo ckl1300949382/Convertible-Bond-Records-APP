@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import sqlite3
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 
 import pytest
@@ -130,3 +130,45 @@ def test_list_page_empty_database(service):
     assert result.records == []
     assert result.total == 0
     assert result.page == 1
+
+
+# ---- 全局统计（§3.2，STA-01 / REC-02） ---------------------------------------
+
+
+def test_global_statistics_empty_database(service):
+    stats = service.global_statistics()
+    assert stats.total_count == 0
+    assert stats.total_profit == Decimal("0")
+
+
+def test_global_statistics_month_and_year_attribution(service):
+    today = date.today()
+    this_month = today.replace(day=1)
+    prev_month = this_month - timedelta(days=1)  # 上月最后一天（可能是去年）
+    service.create_record(make_record(sale_date=this_month, sale_price=Decimal("130.00")))  # +300
+    service.create_record(make_record(sale_date=prev_month, sale_price=Decimal("110.00")))  # +100
+
+    stats = service.global_statistics()
+    assert stats.total_count == 2
+    assert stats.total_profit == Decimal("400.00")
+    assert stats.month_profit == Decimal("300.00")  # 只含本月
+    expected_year = Decimal("400.00") if prev_month.year == today.year else Decimal("300.00")
+    assert stats.year_profit == expected_year
+
+
+def test_rec02_editing_date_moves_month_attribution(service):
+    today = date.today()
+    this_month = today.replace(day=1)
+    prev_month = this_month - timedelta(days=1)
+
+    created = service.create_record(
+        make_record(sale_date=this_month, sale_price=Decimal("130.00"))
+    ).record
+    assert service.global_statistics().month_profit == Decimal("300.00")
+
+    created.sale_date = prev_month  # 编辑历史日期 → 重新归属
+    service.update_record(created)
+    stats = service.global_statistics()
+    assert stats.month_profit == Decimal("0")
+    expected_year = Decimal("300.00") if prev_month.year == today.year else Decimal("0")
+    assert stats.year_profit == expected_year

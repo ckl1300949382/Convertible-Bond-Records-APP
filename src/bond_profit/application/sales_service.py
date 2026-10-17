@@ -11,6 +11,7 @@ import math
 from dataclasses import dataclass, field
 
 from bond_profit.domain.models import RecordQuery, SaleRecord
+from bond_profit.domain.statistics import GlobalStatistics, global_statistics
 from bond_profit.domain.validation import normalize, validate_record
 from bond_profit.infrastructure.repository import RepositoryError, SalesRepository
 
@@ -66,6 +67,10 @@ class SalesService:
 
     def distinct_years(self) -> list[int]:
         return self._repository.distinct_years()
+
+    def global_statistics(self) -> GlobalStatistics:
+        """全局统计卡片（§3.2）：全量聚合，不经过搜索/筛选条件（STA-01）。"""
+        return global_statistics(self._repository.list_all())
 
     # ---- 内部 -------------------------------------------------------------
 

@@ -1,7 +1,7 @@
 """主窗口：交易记录管理。
 
-阶段 1 提供记录表格与增删改；阶段 2 扩展搜索/筛选/排序/分页（§3.3）。
-统计卡片与图表由批次 6/7 加入。
+阶段 1 提供记录表格与增删改；阶段 2 扩展统计卡片、搜索/筛选/排序/分页（§3.2/§3.3）。
+图表由批次 7 加入。
 """
 
 from __future__ import annotations
@@ -11,6 +11,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtWidgets import (
     QComboBox,
+    QFrame,
     QHBoxLayout,
     QHeaderView,
     QLabel,
@@ -18,6 +19,7 @@ from PySide6.QtWidgets import (
     QMainWindow,
     QMessageBox,
     QPushButton,
+    QStackedWidget,
     QTableWidget,
     QTableWidgetItem,
     QVBoxLayout,
@@ -90,6 +92,25 @@ class MainWindow(QMainWindow):
 
         layout.addLayout(toolbar)
 
+        # ---- 统计卡片：全局值，不随列表搜索/筛选变化（§3.2，STA-01） ----------
+        cards_row = QHBoxLayout()
+        self.total_profit_value = self._make_stat_card(
+            cards_row, "累计收益"
+        )
+        self.year_profit_value = self._make_stat_card(cards_row, "本年收益")
+        self.month_profit_value = self._make_stat_card(cards_row, "本月收益")
+        self.total_count_value = self._make_stat_card(
+            cards_row, "累计卖出笔数"
+        )
+        layout.addLayout(cards_row)
+
+        # ---- 页面栈：记录表格页 / 空状态页 ------------------------------------
+        self.stack = QStackedWidget()
+
+        table_page = QWidget()
+        table_layout = QVBoxLayout(table_page)
+        table_layout.setContentsMargins(0, 0, 0, 0)
+
         # ---- 记录表格 --------------------------------------------------------
         self.table = QTableWidget(0, len(_COLUMNS))
         self.table.setHorizontalHeaderLabels(_COLUMNS)
@@ -102,7 +123,7 @@ class MainWindow(QMainWindow):
         header.setStretchLastSection(True)
         header.setSortIndicatorShown(True)
         header.setSortIndicator(0, Qt.SortOrder.DescendingOrder)
-        layout.addWidget(self.table)
+        table_layout.addWidget(self.table)
 
         # ---- 底部分页栏 --------------------------------------------------------
         bottom = QHBoxLayout()
@@ -115,7 +136,27 @@ class MainWindow(QMainWindow):
         bottom.addWidget(self.prev_button)
         bottom.addWidget(self.page_label)
         bottom.addWidget(self.next_button)
-        layout.addLayout(bottom)
+        table_layout.addLayout(bottom)
+
+        self.stack.addWidget(table_page)
+
+        # ---- 空状态页（§3.2：清晰空状态 + 新增入口，不插入示例数据） -----------
+        empty_page = QWidget()
+        empty_layout = QVBoxLayout(empty_page)
+        empty_layout.addStretch()
+        self.empty_title = QLabel("还没有任何卖出记录")
+        self.empty_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        empty_layout.addWidget(self.empty_title)
+        button_row = QHBoxLayout()
+        button_row.addStretch()
+        self.empty_add_button = QPushButton("新增第一条记录")
+        button_row.addWidget(self.empty_add_button)
+        button_row.addStretch()
+        empty_layout.addLayout(button_row)
+        empty_layout.addStretch()
+        self.stack.addWidget(empty_page)
+
+        layout.addWidget(self.stack)
 
         self.setCentralWidget(central)
 
@@ -130,6 +171,7 @@ class MainWindow(QMainWindow):
         self.month_combo.currentIndexChanged.connect(self._on_month_changed)
         self.prev_button.clicked.connect(self._on_prev_page)
         self.next_button.clicked.connect(self._on_next_page)
+        self.empty_add_button.clicked.connect(self._on_add)
 
         find_shortcut = QShortcut(QKeySequence("Ctrl+F"), self)
         find_shortcut.activated.connect(self._on_focus_search)
@@ -139,9 +181,9 @@ class MainWindow(QMainWindow):
     # ---- 数据显示 ----------------------------------------------------------
 
     def refresh_records(self) -> None:
-        """按当前搜索/筛选/排序/页码从服务层读取并重建表格。
+        """按当前搜索/筛选/排序/页码从服务层读取并重建表格与统计卡片。
 
-        统计卡片与图表刷新在批次 6/7 接入同一入口。
+        卡片为全局值（全量聚合，STA-01）；图表刷新在批次 7 接入同一入口。
         """
         self._sync_year_options()
         query = self._build_query()
@@ -149,6 +191,9 @@ class MainWindow(QMainWindow):
         self._records = result.records
         self._total = result.total
         self._page = result.page  # 页码钳制（删除当前页最后一条时自动前移）
+
+        self._refresh_stat_cards()
+        self.stack.setCurrentIndex(1 if self._total == 0 else 0)
 
         self.table.setRowCount(len(self._records))
         for row, record in enumerate(self._records):
@@ -175,6 +220,27 @@ class MainWindow(QMainWindow):
         self.page_label.setText(f"第 {self._page} / {last_page} 页")
         self.prev_button.setEnabled(self._page > 1)
         self.next_button.setEnabled(self._page < last_page)
+
+    def _make_stat_card(self, row: QHBoxLayout, title: str) -> QLabel:
+        """构建一张统计卡片，返回值标签（§3.2）。"""
+        frame = QFrame()
+        frame.setFrameShape(QFrame.Shape.StyledPanel)
+        box = QVBoxLayout(frame)
+        title_label = QLabel(title)
+        value_label = QLabel("0.00")
+        value_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        box.addWidget(title_label)
+        box.addWidget(value_label)
+        row.addWidget(frame, stretch=1)
+        return value_label
+
+    def _refresh_stat_cards(self) -> None:
+        """刷新四张全局统计卡片（§3.2），显示带正负号与单位。"""
+        stats = self._service.global_statistics()
+        self.total_profit_value.setText(f"{format_money(stats.total_profit)} 元")
+        self.year_profit_value.setText(f"{format_money(stats.year_profit)} 元")
+        self.month_profit_value.setText(f"{format_money(stats.month_profit)} 元")
+        self.total_count_value.setText(f"{stats.total_count} 笔")
 
     def _selected_record(self) -> SaleRecord | None:
         row = self.table.currentRow()

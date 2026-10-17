@@ -5,6 +5,11 @@
 
 ## [未发布] - 阶段 2：首页与统计交互
 
+- 批次 6：
+  - 领域层：domain/statistics.py 全局统计聚合（累计收益/本年收益/本月收益/累计卖出笔数，Decimal 纯函数，today 可注入）
+  - 服务层：global_statistics 全量聚合透传，不经过搜索/筛选条件（STA-01）
+  - 主窗口：四张统计卡片（带正负号与单位）、空状态页（「还没有任何卖出记录」+「新增第一条记录」入口，不插入示例数据）、增删改后卡片同步刷新
+  - 测试：统计聚合 7 项、服务层 3 项（含 REC-02 重新归属）、UI 5 项；全套 107 项通过
 - 批次 5：
   - 数据层：RecordQuery 查询条件对象；SalesRepository 分页查询（list_page / count_filtered，关键词 LIKE 转义、年月筛选日期范围、排序白名单 date/price/profit、id 降序稳定次序）、distinct_years
   - 服务层：SalesService.list_page（页码超界自动钳制，删除当前页最后一条后页码随之调整）、distinct_years 透传

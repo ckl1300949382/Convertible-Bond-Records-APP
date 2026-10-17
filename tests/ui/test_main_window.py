@@ -1,4 +1,4 @@
-"""主窗口测试：表格显示、删除确认（REC-03）、刷新联动。"""
+"""主窗口测试：表格显示、删除确认（REC-03）、刷新联动、统计卡片与空状态。"""
 
 from __future__ import annotations
 
@@ -10,6 +10,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtWidgets import QMessageBox
 
+import bond_profit.ui.main_window as main_window_module
 from bond_profit.application.sales_service import SalesService
 from bond_profit.domain.models import SaleRecord
 from bond_profit.infrastructure.database import connect
@@ -266,3 +267,102 @@ def test_ctrl_f_focuses_search_input(service, qtbot):
     assert shortcut is not None and shortcut.key() == QKeySequence("Ctrl+F")
     shortcut.activated.emit()
     assert window.focusWidget() is window.search_input
+
+
+# ---- 阶段 2 批次 6：统计卡片与空状态（§3.2，STA-01 / REC-02） ----------------
+
+
+def test_stat_cards_show_global_values(service, qtbot):
+    today = date.today()
+    this_month = today.replace(day=1)
+    service.create_record(make_record(sale_date=this_month, sale_price=Decimal("130.00")))  # +300
+    service.create_record(make_record(sale_date=date(2025, 6, 1), sale_price=Decimal("110.00")))  # +100
+
+    window = MainWindow(service)
+    qtbot.addWidget(window)
+
+    assert window.total_profit_value.text() == "+400.00 元"
+    assert window.year_profit_value.text() == "+300.00 元"  # 2025 年不计入本年
+    assert window.month_profit_value.text() == "+300.00 元"
+    assert window.total_count_value.text() == "2 笔"
+
+
+def test_stat_cards_unaffected_by_search_filter(service, qtbot):
+    """STA-01：筛选某个月记录时，四张全局卡片保持全局值。"""
+    today = date.today()
+    this_month = today.replace(day=1)
+    service.create_record(
+        make_record(bond_name="本月转债", sale_date=this_month, sale_price=Decimal("130.00"))
+    )  # +300
+    service.create_record(make_record(sale_date=date(2025, 6, 1), sale_price=Decimal("110.00")))  # +100
+
+    window = MainWindow(service)
+    qtbot.addWidget(window)
+    before = [
+        window.total_profit_value.text(),
+        window.year_profit_value.text(),
+        window.month_profit_value.text(),
+        window.total_count_value.text(),
+    ]
+
+    window.search_input.setText("本月")  # 只命中 2026 年那条
+    window._on_search_changed()
+    assert window.table.rowCount() == 1  # 列表被筛选
+
+    after = [
+        window.total_profit_value.text(),
+        window.year_profit_value.text(),
+        window.month_profit_value.text(),
+        window.total_count_value.text(),
+    ]
+    assert before == after  # 卡片保持全局值
+
+
+def test_stat_cards_refresh_after_delete(service, qtbot, monkeypatch):
+    today = date.today()
+    service.create_record(make_record(sale_date=today.replace(day=1)))
+    window = MainWindow(service)
+    qtbot.addWidget(window)
+    assert window.total_count_value.text() == "1 笔"
+
+    window.table.selectRow(0)
+    monkeypatch.setattr(
+        QMessageBox, "question", staticmethod(lambda *a, **k: QMessageBox.StandardButton.Yes)
+    )
+    window._on_delete()
+
+    assert window.total_count_value.text() == "0 笔"
+    assert window.total_profit_value.text() == "0.00 元"
+
+
+def test_empty_state_shown_when_no_records(service, qtbot):
+    window = MainWindow(service)
+    qtbot.addWidget(window)
+
+    assert window.stack.currentIndex() == 1  # 空状态页
+    assert window.empty_title.text() == "还没有任何卖出记录"
+
+    service.create_record(make_record())
+    window.refresh_records()
+    assert window.stack.currentIndex() == 0  # 有记录后回到表格页
+
+
+def test_empty_state_add_button_opens_dialog(service, qtbot, monkeypatch):
+    window = MainWindow(service)
+    qtbot.addWidget(window)
+
+    opened = {}
+    record_arg = {}
+
+    class FakeDialog:
+        def __init__(self, svc, parent=None, record=None):
+            opened["count"] = opened.get("count", 0) + 1
+            record_arg["record"] = record
+
+        def exec(self):
+            return 1
+
+    monkeypatch.setattr(main_window_module, "RecordDialog", FakeDialog)
+    window.empty_add_button.click()
+    assert opened["count"] == 1
+    assert record_arg["record"] is None  # 空状态入口是新增，不是编辑
