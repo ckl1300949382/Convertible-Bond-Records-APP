@@ -9,8 +9,9 @@ apply_theme 记录最近一次应用的主题，供运行期组件（弹窗、�
 
 from __future__ import annotations
 
-from PySide6.QtGui import QColor
-from PySide6.QtWidgets import QApplication
+from PySide6.QtCore import Qt
+from PySide6.QtGui import QColor, QPalette, QTextCharFormat
+from PySide6.QtWidgets import QApplication, QCalendarWidget
 
 from bond_profit.ui.tokens import (
     FONT_FAMILY,
@@ -59,10 +60,24 @@ def stylesheet_for(mode: str) -> str:
 
 
 def apply_theme(app: QApplication, mode: str) -> None:
-    """应用主题样式表并记录当前模式（图表色由主窗口同步设置）。"""
+    """应用主题样式表 + 全局调色板并记录当前模式（图表色由主窗口同步设置）。
+
+    QSS 不会更新 QPalette：Qt 内部自绘控件（如日历弹层导航栏的月/年按钮）
+    按全局调色板绘制文字，深色主题下必须同步设置，否则出现黑字低对比。
+    仅同步文字类角色，背景/强调色仍以 QSS 为准，避免全局副作用。
+    """
     global _CURRENT_MODE
     _CURRENT_MODE = "dark" if mode == "dark" else "light"
+    palette = palette_for(_CURRENT_MODE)
     app.setStyleSheet(stylesheet_for(_CURRENT_MODE))
+    app_palette = app.palette()
+    for role in (
+        QPalette.ColorRole.WindowText,
+        QPalette.ColorRole.ButtonText,
+        QPalette.ColorRole.Text,
+    ):
+        app_palette.setColor(QPalette.ColorGroup.All, role, QColor(palette.text))
+    app.setPalette(app_palette)
 
 
 def chart_label_color(mode: str) -> QColor:
@@ -106,6 +121,31 @@ def warning_color(mode: str | None = None) -> QColor:
 def error_qss(mode: str | None = None) -> str:
     """错误文字的内联 QSS（表单错误提示等少数必须内联样式的场景）。"""
     return f"color: {palette_for(mode or active_mode()).danger};"
+
+
+def apply_calendar_formats(calendar: QCalendarWidget, mode: str | None = None) -> None:
+    """日历弹层星期表头随主题配色（UI V2.0 修复深色对比度）。
+
+    星期表头由 QCalendarWidget 内部 weekdayTextFormat 绘制，不走 QSS；
+    深色下沿用浅色调色板导致对比度不足。显式设置：周一~周五用弱化文字色，
+    周六/周日用主题红（中国日历休息日习惯）。
+    导航栏月/年按钮文字色由 apply_theme 的全局调色板统一覆盖。
+    """
+    palette = palette_for(mode or active_mode())
+    fmt_weekday = QTextCharFormat()
+    fmt_weekday.setForeground(QColor(palette.text_muted))
+    fmt_weekend = QTextCharFormat()
+    fmt_weekend.setForeground(QColor(palette.profit))
+    for day in (
+        Qt.DayOfWeek.Monday,
+        Qt.DayOfWeek.Tuesday,
+        Qt.DayOfWeek.Wednesday,
+        Qt.DayOfWeek.Thursday,
+        Qt.DayOfWeek.Friday,
+    ):
+        calendar.setWeekdayTextFormat(day, fmt_weekday)
+    for day in (Qt.DayOfWeek.Saturday, Qt.DayOfWeek.Sunday):
+        calendar.setWeekdayTextFormat(day, fmt_weekend)
 
 
 # ---- QSS 生成 ----------------------------------------------------------------
@@ -315,5 +355,7 @@ QCalendarWidget QAbstractItemView {{
     outline: 0;
 }}
 QCalendarWidget #qt_calendar_navigationbar {{ background-color: {p.surface_alt}; }}
+QCalendarWidget #qt_calendar_monthbutton,
+QCalendarWidget #qt_calendar_yearbutton {{ color: {p.text}; background: transparent; }}
 QCalendarWidget #qt_calendar_calendarview {{ background-color: {p.surface}; }}
 """

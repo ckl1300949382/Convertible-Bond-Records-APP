@@ -3,6 +3,19 @@
 格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)。
 程序版本采用 `MAJOR.MINOR.PATCH`，数据库 schema_version 独立递增（阶段 1 起）。
 
+## [未定版] - UI V2.0 修复：日历弹层深色对比度（分支 ui-v2）
+
+修复已知问题「QDateEdit 日历弹层星期表头深色对比度偏弱」。校验/保存逻辑零改动；无新增依赖。
+
+- ui/theme.py：
+  - 新增 apply_calendar_formats()——星期表头（Qt 内部 weekdayTextFormat 绘制，不走 QSS）按主题显式配色：周一~周五弱化文字色、周六/周日用主题红（中国日历休息日习惯，深浅主题各调亮度）
+  - apply_theme() 新增全局 QPalette 文字角色同步（WindowText/ButtonText/Text）——QSS 不更新 QPalette，日历导航栏月/年按钮为 Qt 内部自绘（QCalToolButton），按全局调色板绘制文字，深色下黑字低对比；仅同步文字类角色，背景/强调色仍以 QSS 为准
+  - 排查过程：先后验证控件调色板、组件级 QSS、headerTextFormat 均不可达（内部自绘绕过），最终以全局调色板方案收敛
+- ui/record_dialog.py：创建日期控件（calendarPopup）时调用 apply_calendar_formats
+- 测试：新增 tests/unit/test_theme.py::test_apply_calendar_formats_follows_theme；全量 pytest 真实执行 240 passed
+- 视觉取证：docs/ui_v2_preview/fix_calendar_dark.png、fix_calendar_light.png
+- 备注：日历导航栏深色对比度问题一并修复，已知问题清单中该项关闭
+
 ## [未定版] - UI V2.0 阶段 8（分支 ui-v2）
 
 回归与发布。业务规则、数据库结构、Excel 规则、备份恢复逻辑零改动；无新增依赖。

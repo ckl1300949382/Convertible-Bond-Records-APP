@@ -72,6 +72,7 @@ class RecordDialog(QDialog):
         self.code_edit.setMaxLength(6)
         self.date_edit = QDateEdit(calendarPopup=True)
         self.date_edit.setDisplayFormat("yyyy-MM-dd")
+        theme.apply_calendar_formats(self.date_edit.calendarWidget())  # 星期表头随主题配色
         self.price_edit = QLineEdit()
         self.price_edit.setPlaceholderText("如 130.00")
         self.quantity_spin = QSpinBox()

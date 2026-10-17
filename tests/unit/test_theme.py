@@ -77,3 +77,24 @@ def test_active_mode_tracks_apply_theme(qtbot, qapp):
         assert theme.error_qss() == f"color: {tokens.LIGHT.danger};"
     finally:
         qapp.setStyleSheet("")
+
+
+def test_apply_calendar_formats_follows_theme(qtbot, qapp):
+    """日历星期表头配色随主题（深色对比度修复）：工作日弱化、周末红。"""
+    from PySide6.QtCore import Qt
+    from PySide6.QtWidgets import QCalendarWidget
+
+    calendar = QCalendarWidget()
+    qtbot.addWidget(calendar)
+
+    theme.apply_calendar_formats(calendar, "dark")
+    monday = calendar.weekdayTextFormat(Qt.DayOfWeek.Monday)
+    saturday = calendar.weekdayTextFormat(Qt.DayOfWeek.Saturday)
+    assert monday.foreground().color().name() == QColor(tokens.DARK.text_muted).name()
+    assert saturday.foreground().color().name() == QColor(tokens.DARK.profit).name()
+
+    theme.apply_calendar_formats(calendar, "light")
+    monday = calendar.weekdayTextFormat(Qt.DayOfWeek.Monday)
+    saturday = calendar.weekdayTextFormat(Qt.DayOfWeek.Saturday)
+    assert monday.foreground().color().name() == QColor(tokens.LIGHT.text_muted).name()
+    assert saturday.foreground().color().name() == QColor(tokens.LIGHT.profit).name()
