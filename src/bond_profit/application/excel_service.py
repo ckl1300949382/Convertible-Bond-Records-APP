@@ -16,8 +16,8 @@ from openpyxl import Workbook, load_workbook
 
 from bond_profit.application.sales_service import SalesService
 from bond_profit.domain.calculations import profit_per_record
+from bond_profit.domain.models import RecordQuery, SaleRecord
 from bond_profit.domain.money import yuan_to_cents
-from bond_profit.domain.models import SaleRecord
 from bond_profit.domain.validation import validate_record
 
 _HEADERS = ("转债名称", "转债代码", "卖出日期", "卖出价格", "卖出数量", "备注")
@@ -299,6 +299,52 @@ class ExcelService:
                 row_number=row_number, status="error", reason="；".join(field_errors)
             )
         return RowResult(row_number=row_number, status="new", record=record)
+
+    # ---- 导出（§4.5） ----------------------------------------------------------
+
+    _EXPORT_HEADERS = (
+        "转债名称", "转债代码", "卖出日期", "卖出价格", "卖出数量", "备注", "收益",
+    )
+
+    def export_records(self, path: str, query: RecordQuery | None = None) -> int:
+        """导出记录为 .xlsx（§4.5）：六业务字段 + 收益列。
+
+        query=None 导出全部；否则按搜索/年月筛选取全集（不受分页限制）。
+        收益由软件计算写入，仅作展示参考，导入时不作为可信来源。
+        代码列按文本写入保留前导零；金额列 Decimal→float 仅用于 Excel
+        显示（"0.00" 格式），不参与任何浮点运算。
+        返回导出条数。
+        """
+        records = self._sales_service.list_filtered(query or RecordQuery())
+        if not records:
+            raise ExcelError("没有符合条件的记录可导出")
+
+        workbook = Workbook()
+        sheet = workbook.active
+        sheet.title = _SHEET_NAME
+        sheet.append(list(self._EXPORT_HEADERS))
+        for record in records:
+            profit = profit_per_record(record.sale_price, record.quantity)
+            sheet.append([
+                record.bond_name,
+                record.bond_code,
+                record.sale_date,
+                float(record.sale_price),
+                record.quantity,
+                record.note,
+                float(profit),
+            ])
+        # 先写数据再设格式：预设格式会创建空单元格，导致后续 append 行错位
+        for row in range(2, len(records) + 2):
+            sheet.cell(row=row, column=2).number_format = "@"  # 代码保留前导零
+            sheet.cell(row=row, column=3).number_format = "yyyy-mm-dd"
+            sheet.cell(row=row, column=4).number_format = "0.00"
+            sheet.cell(row=row, column=7).number_format = "0.00"  # 收益
+        try:
+            workbook.save(path)
+        except OSError as exc:
+            raise ExcelError(f"无法写入文件：{exc}") from exc
+        return len(records)
 
     # ---- 提交（§4.3 事务） ------------------------------------------------------
 

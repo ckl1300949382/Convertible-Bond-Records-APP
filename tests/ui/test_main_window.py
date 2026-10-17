@@ -522,13 +522,21 @@ def test_nav_defaults_to_overview(service, qtbot):
     assert window.pages.currentIndex() == 0
 
 
-def test_nav_switches_to_data_management(service, qtbot):
+def test_nav_switches_to_data_management(service, qtbot, monkeypatch):
     window = MainWindow(service, ExcelService(service))
     qtbot.addWidget(window)
 
     window.nav_list.setCurrentRow(1)
     assert window.pages.currentIndex() == 1
     assert window.pages.currentWidget() is window.data_page
+
+    # 筛选导出接线：信号 → 槽以当前查询条件调 run_export
+    queries = []
+    monkeypatch.setattr(
+        window.data_page, "run_export", lambda q: queries.append(q)
+    )
+    window.data_page.export_filtered_requested.emit()
+    assert queries == [window._build_query()]
 
     window.nav_list.setCurrentRow(0)
     assert window.pages.currentIndex() == 0

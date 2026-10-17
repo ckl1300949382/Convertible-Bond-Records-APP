@@ -75,6 +75,10 @@ class SalesService:
         )
         return PageResult(records=records, total=total, page=current)
 
+    def list_filtered(self, query: RecordQuery) -> list[SaleRecord]:
+        """筛选条件下的全部记录（§4.5 导出全集，不受分页限制）。"""
+        return self._repository.list_filtered(query)
+
     def distinct_years(self) -> list[int]:
         return self._repository.distinct_years()
 

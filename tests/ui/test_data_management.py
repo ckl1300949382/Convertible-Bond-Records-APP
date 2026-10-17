@@ -11,6 +11,7 @@ from openpyxl import Workbook, load_workbook
 import bond_profit.ui.data_management as page_module
 from bond_profit.application.excel_service import ExcelService
 from bond_profit.application.sales_service import SalesService
+from bond_profit.domain.models import RecordQuery, SaleRecord
 from bond_profit.infrastructure.database import connect
 from bond_profit.infrastructure.repository import SalesRepository
 from bond_profit.ui.data_management import DataManagementPage
@@ -166,3 +167,87 @@ def test_import_dialog_rejected_does_not_emit(page, service, tmp_path, monkeypat
     page.import_button.click()
 
     assert len(service.list_records()) == 0
+
+
+# ---- 导出（§4.5） ----------------------------------------------------------------
+
+def test_export_all(page, service, tmp_path, monkeypatch):
+    service.create_record(SaleRecord("平银转债", "012345", date(2026, 1, 15), Decimal("130.00"), 10))
+    target = tmp_path / "out.xlsx"
+    infos = []
+    monkeypatch.setattr(
+        page_module.QFileDialog, "getSaveFileName", lambda *a, **k: (str(target), "")
+    )
+    monkeypatch.setattr(
+        page_module.QMessageBox, "information",
+        lambda parent, title, text: infos.append((title, text)),
+    )
+
+    page.export_all_button.click()
+
+    assert target.exists()
+    assert infos[0][0] == "导出完成"
+    assert "1 条" in infos[0][1]
+
+
+def test_export_filtered_button_requests_query(page, monkeypatch, qtbot):
+    """筛选导出按钮只发信号，由主窗口槽内提供查询条件（无循环引用）。"""
+    requests = []
+    page.export_filtered_requested.connect(lambda: requests.append(True))
+    page.export_filtered_button.click()
+    assert requests == [True]
+
+
+def test_export_filtered_uses_query(page, service, tmp_path, monkeypatch):
+    service.create_record(SaleRecord("平银转债", "012345", date(2026, 1, 15), Decimal("130.00"), 10))
+    service.create_record(SaleRecord("国投转债", "222222", date(2026, 2, 1), Decimal("100.00"), 10))
+    target = tmp_path / "out.xlsx"
+    monkeypatch.setattr(
+        page_module.QFileDialog, "getSaveFileName", lambda *a, **k: (str(target), "")
+    )
+    monkeypatch.setattr(
+        page_module.QMessageBox, "information", lambda *a, **k: None
+    )
+
+    # 模拟主窗口槽：以筛选条件调用 run_export
+    page.export_filtered_requested.connect(
+        lambda: page.run_export(RecordQuery(keyword="平银"))
+    )
+    page.export_filtered_button.click()
+
+    workbook = load_workbook(target)
+    sheet = workbook.active
+    assert sheet.max_row == 2  # 表头 + 1 条匹配
+    assert sheet.cell(2, 1).value == "平银转债"
+
+
+def test_export_empty_shows_hint_without_file(page, tmp_path, monkeypatch):
+    infos = []
+    target = tmp_path / "empty.xlsx"
+    monkeypatch.setattr(
+        page_module.QFileDialog, "getSaveFileName", lambda *a, **k: (str(target), "")
+    )
+    monkeypatch.setattr(
+        page_module.QMessageBox, "information",
+        lambda parent, title, text: infos.append((title, text)),
+    )
+
+    page.export_all_button.click()
+
+    assert infos[0][0] == "无法导出"
+    assert "没有符合条件的记录" in infos[0][1]
+    assert not target.exists()
+
+
+def test_export_cancelled(page, service, monkeypatch):
+    service.create_record(SaleRecord("平银转债", "012345", date(2026, 1, 15), Decimal("130.00"), 10))
+    infos = []
+    monkeypatch.setattr(
+        page_module.QFileDialog, "getSaveFileName", lambda *a, **k: ("", "")
+    )
+    monkeypatch.setattr(
+        page_module.QMessageBox, "information",
+        lambda *a, **k: infos.append(1),
+    )
+    page.export_all_button.click()
+    assert infos == []  # 取消后无弹窗、无写入

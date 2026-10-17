@@ -5,6 +5,11 @@
 
 ## [未发布] - 阶段 3：Excel 导入导出
 
+- 批次 11（导出，XLS-09）：
+  - repository/sales_service 新增 list_filtered：按搜索/年月条件取全集，不受分页限制
+  - excel_service.export_records：导出 .xlsx——六业务字段 + 软件计算的「收益」列（导入时不作为可信来源）；代码列文本格式保留前导零，日期 yyyy-mm-dd、金额 0.00 显示格式；无匹配记录时不写文件并提示
+  - 数据管理页新增「导出全部记录」「导出当前筛选结果」；筛选导出按钮仅发射 export_filtered_requested 信号，由主窗口槽内提供当前查询条件（页面不持有主窗口引用，避免循环引用引发的对象生命周期崩溃）
+  - 测试：导出单测 3 项、导出 UI 5 项、导出接线 1 项；全套 174 项通过
 - 批次 10（导入 UI）：
   - 主窗口：左侧导航「总览 / 数据管理」（§3.1），页面栈切换，默认进入总览；MainWindow 构造新增必传 excel_service 参数
   - ui/data_management.py：数据管理页（模板下载、从 Excel 导入），导入完成发射 import_completed 信号驱动总览页刷新

@@ -10,7 +10,7 @@ from openpyxl import Workbook, load_workbook
 
 from bond_profit.application.excel_service import ExcelError, ExcelService
 from bond_profit.application.sales_service import SalesService
-from bond_profit.domain.models import SaleRecord
+from bond_profit.domain.models import RecordQuery, SaleRecord
 from bond_profit.infrastructure.database import connect
 from bond_profit.infrastructure.repository import RepositoryError, SalesRepository
 
@@ -218,6 +218,52 @@ def test_missing_required_column_raises(tmp_path, excel):
 def test_nonexistent_file_raises(tmp_path, excel):
     with pytest.raises(ExcelError):
         excel.preview_import(str(tmp_path / "no_such_file.xlsx"))
+
+
+# ---- 导出（§4.5 / XLS-09） ----------------------------------------------------
+
+def test_export_all_with_profit_column(tmp_path, excel, service):
+    service.create_record(SaleRecord("平银转债", "012345", date(2026, 1, 15), Decimal("130.00"), 10))
+    service.create_record(SaleRecord("亏损转债", "111111", date(2026, 2, 1), Decimal("98.50"), 10))
+    path = tmp_path / "export.xlsx"
+    count = excel.export_records(str(path))
+    assert count == 2
+
+    workbook = load_workbook(path)
+    sheet = workbook["卖出记录"]
+    assert [cell.value for cell in sheet[1]] == [
+        "转债名称", "转债代码", "卖出日期", "卖出价格", "卖出数量", "备注", "收益",
+    ]
+    assert sheet.cell(2, 1).value == "亏损转债"  # 默认最新日期在前
+    assert sheet.cell(2, 2).value == "111111"
+    assert sheet.cell(2, 3).value == datetime(2026, 2, 1)  # openpyxl 回读为 datetime
+    assert sheet.cell(2, 4).value == 98.5
+    assert sheet.cell(2, 7).value == -15.0  # 收益 (98.50-100)*10
+    assert sheet.cell(3, 2).value == "012345"  # 前导零保留
+    assert sheet.cell(3, 2).number_format == "@"  # 代码文本格式
+    assert sheet.cell(3, 7).value == 300.0
+
+
+def test_export_filtered_full_set(tmp_path, excel, service):
+    """XLS-09：筛选导出按条件取全集，不受每页 20 条分页限制。"""
+    service.create_record(SaleRecord("平银转债", "012345", date(2026, 1, 15), Decimal("130.00"), 10))
+    service.create_record(SaleRecord("国投转债", "222222", date(2026, 2, 1), Decimal("100.00"), 10))
+    path = tmp_path / "export.xlsx"
+    count = excel.export_records(str(path), RecordQuery(keyword="平银"))
+    assert count == 1
+
+    workbook = load_workbook(path)
+    sheet = workbook.active
+    assert sheet.max_row == 2  # 表头 + 1 条匹配
+    assert sheet.cell(2, 1).value == "平银转债"
+
+
+def test_export_empty_raises_without_file(tmp_path, excel):
+    path = tmp_path / "empty.xlsx"
+    with pytest.raises(ExcelError) as excinfo:
+        excel.export_records(str(path))
+    assert "没有符合条件的记录" in str(excinfo.value)
+    assert not path.exists()
 
 
 # ---- 提交（§4.3） ------------------------------------------------------------

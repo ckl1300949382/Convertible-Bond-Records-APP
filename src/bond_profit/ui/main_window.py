@@ -231,6 +231,7 @@ class MainWindow(QMainWindow):
         # 总览页完成，加入页面栈；数据管理页由批次 10 提供（§4）
         self.pages.addWidget(overview_page)
         self.data_page = DataManagementPage(excel_service)
+        self.data_page.export_filtered_requested.connect(self._on_export_filtered)
         self.pages.addWidget(self.data_page)
 
         self.setCentralWidget(central)
@@ -268,6 +269,10 @@ class MainWindow(QMainWindow):
     def _on_nav_changed(self, index: int) -> None:
         """左侧导航切换页面（总览 / 数据管理）。"""
         self.pages.setCurrentIndex(index)
+
+    def _on_export_filtered(self) -> None:
+        """按总览页当前搜索/筛选条件导出全集（§4.5 XLS-09）。"""
+        self.data_page.run_export(self._build_query())
 
     # ---- 主题（§3.6） ---------------------------------------------------------
 

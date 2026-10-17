@@ -210,6 +210,18 @@ class SalesRepository:
         )
         return [self._row_to_record(row) for row in cursor.fetchall()]
 
+    def list_filtered(self, query: RecordQuery) -> list[SaleRecord]:
+        """符合搜索/筛选条件的全部记录（§4.5 导出全集，不受分页限制）。"""
+        where, params = _build_where(query)
+        order_expr = _SORT_EXPRS.get(query.sort_key, "sale_date")
+        direction = "DESC" if query.descending else "ASC"
+        cursor = self._conn.execute(
+            f"SELECT {_SELECT_COLUMNS} FROM sales {where} "
+            f"ORDER BY {order_expr} {direction}, id DESC",
+            params,
+        )
+        return [self._row_to_record(row) for row in cursor.fetchall()]
+
     def distinct_years(self) -> list[int]:
         """数据库中出现过的卖出年份，降序（用于年份筛选下拉）。"""
         cursor = self._conn.execute(
