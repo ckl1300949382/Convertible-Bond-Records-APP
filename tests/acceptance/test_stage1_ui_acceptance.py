@@ -18,6 +18,7 @@ import pytest
 from PySide6.QtCore import QTimer, Qt
 from PySide6.QtWidgets import QApplication, QMessageBox
 
+from bond_profit.application.excel_service import ExcelService
 from bond_profit.application.sales_service import SalesService
 from bond_profit.infrastructure.database import connect
 from bond_profit.infrastructure.repository import SalesRepository
@@ -92,7 +93,7 @@ def _click_box(answer: QMessageBox.StandardButton):
 
 def test_b5_empty_save_shows_field_errors(service_and_conn, qtbot):
     service, _ = service_and_conn
-    window = MainWindow(service)
+    window = MainWindow(service, ExcelService(service))
     qtbot.addWidget(window)
     window.show()
 
@@ -116,7 +117,7 @@ def test_b5_empty_save_shows_field_errors(service_and_conn, qtbot):
 
 def test_b6_add_record_updates_table(service_and_conn, qtbot):
     service, _ = service_and_conn
-    window = MainWindow(service)
+    window = MainWindow(service, ExcelService(service))
     qtbot.addWidget(window)
     window.show()
 
@@ -143,7 +144,7 @@ def test_b6_add_record_updates_table(service_and_conn, qtbot):
 
 def test_b7_edit_button_updates_profit(service_and_conn, qtbot):
     service, _ = service_and_conn
-    window = MainWindow(service)
+    window = MainWindow(service, ExcelService(service))
     service.create_record(make_record())
     window.refresh_records()
     qtbot.addWidget(window)
@@ -169,7 +170,7 @@ def test_b7_edit_button_updates_profit(service_and_conn, qtbot):
 
 def test_b8_delete_cancelled_keeps_record(service_and_conn, qtbot):
     service, _ = service_and_conn
-    window = MainWindow(service)
+    window = MainWindow(service, ExcelService(service))
     service.create_record(make_record())
     window.refresh_records()
     qtbot.addWidget(window)
@@ -187,7 +188,7 @@ def test_b8_delete_cancelled_keeps_record(service_and_conn, qtbot):
 
 def test_b9_delete_confirmed_removes_record(service_and_conn, qtbot):
     service, _ = service_and_conn
-    window = MainWindow(service)
+    window = MainWindow(service, ExcelService(service))
     service.create_record(make_record())
     window.refresh_records()
     qtbot.addWidget(window)
@@ -210,7 +211,7 @@ def test_b10_data_persists_across_restart(tmp_path, qtbot):
     """关闭连接（模拟退出）→ 重新打开数据库（模拟重启）→ 记录仍在。"""
     db = tmp_path / "restart" / "app.db"
     service1, conn1 = make_service(db)
-    window1 = MainWindow(service1)
+    window1 = MainWindow(service1, ExcelService(service1))
     qtbot.addWidget(window1)
 
     def inside_dialog(dialog):
@@ -226,7 +227,7 @@ def test_b10_data_persists_across_restart(tmp_path, qtbot):
 
     # 模拟重启：全新连接 + 全新窗口
     service2, conn2 = make_service(db)
-    window2 = MainWindow(service2)
+    window2 = MainWindow(service2, ExcelService(service2))
     qtbot.addWidget(window2)
     try:
         assert window2.table.rowCount() == 1

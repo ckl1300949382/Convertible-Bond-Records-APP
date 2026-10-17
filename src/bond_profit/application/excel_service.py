@@ -120,7 +120,7 @@ class ExcelService:
             key = self.record_key(row.record)
             if key in existing_keys or key in seen:
                 row.status = "duplicate"  # 与库重复或文件内重复（§4.3）
-                row.record = None
+                # record 保留供预览展示；new_records 只取 status=="new"，不会重复写入
                 preview.duplicate_count += 1
                 continue
             seen.add(key)

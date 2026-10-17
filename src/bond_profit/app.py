@@ -13,6 +13,7 @@ from PySide6.QtCore import Qt
 from PySide6.QtNetwork import QLocalServer, QLocalSocket
 from PySide6.QtWidgets import QApplication
 
+from bond_profit.application.excel_service import ExcelService
 from bond_profit.application.sales_service import SalesService
 from bond_profit.infrastructure.database import connect
 from bond_profit.infrastructure.logging import setup_logging
@@ -39,8 +40,9 @@ def main() -> int:
 
     conn = connect()
     service = SalesService(SalesRepository(conn))
+    excel_service = ExcelService(service)
 
-    window = MainWindow(service)
+    window = MainWindow(service, excel_service)
     _start_single_instance_server(window)
 
     window.show()

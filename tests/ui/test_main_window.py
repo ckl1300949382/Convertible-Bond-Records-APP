@@ -11,6 +11,7 @@ from PySide6.QtGui import QKeySequence, QShortcut
 from PySide6.QtWidgets import QMessageBox
 
 import bond_profit.ui.main_window as main_window_module
+from bond_profit.application.excel_service import ExcelService
 from bond_profit.application.sales_service import SalesService
 from bond_profit.domain.models import SaleRecord
 from bond_profit.infrastructure.database import connect
@@ -40,7 +41,7 @@ def make_record(**overrides) -> SaleRecord:
 
 
 def test_empty_window_shows_zero_count(service, qtbot):
-    window = MainWindow(service)
+    window = MainWindow(service, ExcelService(service))
     qtbot.addWidget(window)
 
     assert window.table.rowCount() == 0
@@ -49,7 +50,7 @@ def test_empty_window_shows_zero_count(service, qtbot):
 
 def test_refresh_shows_records_with_profit(service, qtbot):
     service.create_record(make_record())
-    window = MainWindow(service)
+    window = MainWindow(service, ExcelService(service))
     qtbot.addWidget(window)
 
     assert window.table.rowCount() == 1
@@ -60,7 +61,7 @@ def test_refresh_shows_records_with_profit(service, qtbot):
 
 def test_delete_cancelled_keeps_record(service, qtbot, monkeypatch):
     service.create_record(make_record())
-    window = MainWindow(service)
+    window = MainWindow(service, ExcelService(service))
     qtbot.addWidget(window)
     window.table.selectRow(0)
 
@@ -74,7 +75,7 @@ def test_delete_cancelled_keeps_record(service, qtbot, monkeypatch):
 
 def test_delete_confirmed_removes_record(service, qtbot, monkeypatch):
     service.create_record(make_record())
-    window = MainWindow(service)
+    window = MainWindow(service, ExcelService(service))
     qtbot.addWidget(window)
     window.table.selectRow(0)
 
@@ -89,7 +90,7 @@ def test_delete_confirmed_removes_record(service, qtbot, monkeypatch):
 
 def test_delete_without_selection_does_nothing(service, qtbot):
     service.create_record(make_record())
-    window = MainWindow(service)
+    window = MainWindow(service, ExcelService(service))
     qtbot.addWidget(window)
 
     window._on_delete()  # 无选中行，不应弹确认也不应删除
@@ -112,7 +113,7 @@ def seed_many(service, count=25) -> None:
 
 def test_pagination_first_page_and_label(service, qtbot):
     seed_many(service)
-    window = MainWindow(service)
+    window = MainWindow(service, ExcelService(service))
     qtbot.addWidget(window)
 
     assert window.table.rowCount() == 20
@@ -124,7 +125,7 @@ def test_pagination_first_page_and_label(service, qtbot):
 
 def test_pagination_next_and_prev(service, qtbot):
     seed_many(service)
-    window = MainWindow(service)
+    window = MainWindow(service, ExcelService(service))
     qtbot.addWidget(window)
 
     window.next_button.click()
@@ -140,7 +141,7 @@ def test_pagination_next_and_prev(service, qtbot):
 
 def test_search_filters_table_and_resets_page(service, qtbot):
     seed_many(service)
-    window = MainWindow(service)
+    window = MainWindow(service, ExcelService(service))
     qtbot.addWidget(window)
     window.next_button.click()
 
@@ -155,7 +156,7 @@ def test_search_filters_table_and_resets_page(service, qtbot):
 def test_search_chinese_keyword_via_handler(service, qtbot):
     """中文关键词搜索（避免 keyClicks 发送中文键事件）。"""
     seed_many(service)
-    window = MainWindow(service)
+    window = MainWindow(service, ExcelService(service))
     qtbot.addWidget(window)
 
     window.search_input.setText("转债05")
@@ -166,7 +167,7 @@ def test_search_chinese_keyword_via_handler(service, qtbot):
 
 def test_search_no_match_shows_empty(service, qtbot):
     seed_many(service)
-    window = MainWindow(service)
+    window = MainWindow(service, ExcelService(service))
     qtbot.addWidget(window)
 
     window.search_input.setText("不存在的名称")
@@ -178,7 +179,7 @@ def test_search_no_match_shows_empty(service, qtbot):
 def test_year_filter_and_month_combo_state(service, qtbot):
     service.create_record(make_record(sale_date=date(2026, 1, 15)))
     service.create_record(make_record(sale_date=date(2025, 6, 1)))
-    window = MainWindow(service)
+    window = MainWindow(service, ExcelService(service))
     qtbot.addWidget(window)
 
     # 初始：全部年份，月份下拉不可用
@@ -211,7 +212,7 @@ def test_header_click_sorts_by_price(service, qtbot):
     service.create_record(make_record(bond_name="低", sale_price=Decimal("101.00")))
     service.create_record(make_record(bond_name="高", sale_price=Decimal("150.00")))
     service.create_record(make_record(bond_name="中", sale_price=Decimal("120.00")))
-    window = MainWindow(service)
+    window = MainWindow(service, ExcelService(service))
     qtbot.addWidget(window)
 
     window._on_header_clicked(3)  # 卖出单价降序
@@ -223,7 +224,7 @@ def test_header_click_sorts_by_price(service, qtbot):
 
 def test_header_click_non_sortable_column_ignored(service, qtbot):
     seed_many(service, 3)
-    window = MainWindow(service)
+    window = MainWindow(service, ExcelService(service))
     qtbot.addWidget(window)
 
     window._on_header_clicked(1)  # 名称列不允许排序，保持默认日期降序
@@ -233,7 +234,7 @@ def test_header_click_non_sortable_column_ignored(service, qtbot):
 
 def test_delete_last_item_on_last_page_adjusts_page(service, qtbot, monkeypatch):
     seed_many(service, 21)  # 两页：20 + 1
-    window = MainWindow(service)
+    window = MainWindow(service, ExcelService(service))
     qtbot.addWidget(window)
     window.next_button.click()
     assert window.page_label.text() == "第 2 / 2 页"
@@ -257,7 +258,7 @@ def test_ctrl_f_focuses_search_input(service, qtbot):
     因此直接验证快捷键的 activated 接线；按键匹配由 Qt 平台层保证，人工抽检。
     """
     seed_many(service, 3)
-    window = MainWindow(service)
+    window = MainWindow(service, ExcelService(service))
     qtbot.addWidget(window)
     window.show()
     qtbot.waitExposed(window)
@@ -279,7 +280,7 @@ def test_stat_cards_show_global_values(service, qtbot):
     service.create_record(make_record(sale_date=this_month, sale_price=Decimal("130.00")))  # +300
     service.create_record(make_record(sale_date=date(2025, 6, 1), sale_price=Decimal("110.00")))  # +100
 
-    window = MainWindow(service)
+    window = MainWindow(service, ExcelService(service))
     qtbot.addWidget(window)
 
     assert window.total_profit_value.text() == "+400.00 元"
@@ -297,7 +298,7 @@ def test_stat_cards_unaffected_by_search_filter(service, qtbot):
     )  # +300
     service.create_record(make_record(sale_date=date(2025, 6, 1), sale_price=Decimal("110.00")))  # +100
 
-    window = MainWindow(service)
+    window = MainWindow(service, ExcelService(service))
     qtbot.addWidget(window)
     before = [
         window.total_profit_value.text(),
@@ -322,7 +323,7 @@ def test_stat_cards_unaffected_by_search_filter(service, qtbot):
 def test_stat_cards_refresh_after_delete(service, qtbot, monkeypatch):
     today = date.today()
     service.create_record(make_record(sale_date=today.replace(day=1)))
-    window = MainWindow(service)
+    window = MainWindow(service, ExcelService(service))
     qtbot.addWidget(window)
     assert window.total_count_value.text() == "1 笔"
 
@@ -337,7 +338,7 @@ def test_stat_cards_refresh_after_delete(service, qtbot, monkeypatch):
 
 
 def test_empty_state_shown_when_no_records(service, qtbot):
-    window = MainWindow(service)
+    window = MainWindow(service, ExcelService(service))
     qtbot.addWidget(window)
 
     assert window.stack.currentIndex() == 1  # 空状态页
@@ -349,7 +350,7 @@ def test_empty_state_shown_when_no_records(service, qtbot):
 
 
 def test_empty_state_add_button_opens_dialog(service, qtbot, monkeypatch):
-    window = MainWindow(service)
+    window = MainWindow(service, ExcelService(service))
     qtbot.addWidget(window)
 
     opened = {}
@@ -379,7 +380,7 @@ def test_charts_reflect_data_on_construction(service, qtbot):
     service.create_record(
         make_record(sale_date=date(2025, 6, 1), sale_price=Decimal("98.50"))
     )  # −15
-    window = MainWindow(service)
+    window = MainWindow(service, ExcelService(service))
     qtbot.addWidget(window)
 
     # 月度图固定 12 项，默认显示最新年份 2026，缺失月份为 0（STA-02）
@@ -399,7 +400,7 @@ def test_charts_reflect_data_on_construction(service, qtbot):
 def test_chart_year_combo_switch_updates_monthly_only(service, qtbot):
     service.create_record(make_record(sale_date=date(2026, 3, 1)))
     service.create_record(make_record(sale_date=date(2025, 6, 1)))
-    window = MainWindow(service)
+    window = MainWindow(service, ExcelService(service))
     qtbot.addWidget(window)
 
     window.chart_year_combo.setCurrentIndex(window.chart_year_combo.findData(2025))
@@ -415,7 +416,7 @@ def test_chart_year_combo_switch_updates_monthly_only(service, qtbot):
 
 
 def test_charts_refresh_after_add_and_delete(service, qtbot, monkeypatch):
-    window = MainWindow(service)
+    window = MainWindow(service, ExcelService(service))
     qtbot.addWidget(window)
     assert window.yearly_chart.items == []
     assert not window.chart_year_combo.isEnabled()  # 无记录时年份下拉不可选
@@ -438,7 +439,7 @@ def test_charts_refresh_after_add_and_delete(service, qtbot, monkeypatch):
 
 def test_theme_toggle_switches_and_saves(service, qtbot, qapp, tmp_path):
     ini = str(tmp_path / "prefs.ini")
-    window = MainWindow(service, settings_path=ini)
+    window = MainWindow(service, ExcelService(service), settings_path=ini)
     qtbot.addWidget(window)
 
     try:
@@ -459,7 +460,7 @@ def test_theme_restored_from_settings(service, qtbot, qapp, tmp_path, monkeypatc
     settings = prefs.open_settings(ini)
     prefs.save_theme(settings, "dark")
 
-    window = MainWindow(service, settings_path=ini)
+    window = MainWindow(service, ExcelService(service), settings_path=ini)
     qtbot.addWidget(window)
     try:
         assert window.theme_button.text() == "深色"
@@ -469,7 +470,7 @@ def test_theme_restored_from_settings(service, qtbot, qapp, tmp_path, monkeypatc
 
 
 def test_ctrl_n_opens_add_dialog(service, qtbot, monkeypatch):
-    window = MainWindow(service)
+    window = MainWindow(service, ExcelService(service))
     qtbot.addWidget(window)
 
     ctrl_n = [
@@ -493,7 +494,7 @@ def test_ctrl_n_opens_add_dialog(service, qtbot, monkeypatch):
 
 def test_window_geometry_and_sort_remembered_but_filters_not(service, qtbot, tmp_path):
     ini = str(tmp_path / "prefs.ini")
-    window = MainWindow(service, settings_path=ini)
+    window = MainWindow(service, ExcelService(service), settings_path=ini)
     qtbot.addWidget(window)
     service.create_record(make_record())
     window.refresh_records()
@@ -503,9 +504,42 @@ def test_window_geometry_and_sort_remembered_but_filters_not(service, qtbot, tmp
     window.resize(1150, 700)
     window.close()
 
-    restored = MainWindow(service, settings_path=ini)
+    restored = MainWindow(service, ExcelService(service), settings_path=ini)
     qtbot.addWidget(restored)
     assert restored._sort_key == "price"  # 排序记忆
     assert restored._sort_desc is True
     assert restored.width() == 1150  # 窗口大小记忆
     assert restored.search_input.text() == ""  # 明确不记住筛选
+
+
+# ---- 左侧导航与数据管理页（批次 10） -------------------------------------------
+
+def test_nav_defaults_to_overview(service, qtbot):
+    window = MainWindow(service, ExcelService(service))
+    qtbot.addWidget(window)
+
+    assert window.nav_list.currentRow() == 0
+    assert window.pages.currentIndex() == 0
+
+
+def test_nav_switches_to_data_management(service, qtbot):
+    window = MainWindow(service, ExcelService(service))
+    qtbot.addWidget(window)
+
+    window.nav_list.setCurrentRow(1)
+    assert window.pages.currentIndex() == 1
+    assert window.pages.currentWidget() is window.data_page
+
+    window.nav_list.setCurrentRow(0)
+    assert window.pages.currentIndex() == 0
+
+
+def test_import_completed_signal_refreshes_overview(service, qtbot):
+    window = MainWindow(service, ExcelService(service))
+    qtbot.addWidget(window)
+    assert window.count_label.text() == "共 0 条记录"
+
+    service.create_record(make_record())
+    window.data_page.import_completed.emit()  # 模拟导入完成回调
+
+    assert window.count_label.text() == "共 1 条记录"

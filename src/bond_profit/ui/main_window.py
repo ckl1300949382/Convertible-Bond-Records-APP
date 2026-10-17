@@ -1,7 +1,7 @@
-"""主窗口：交易记录管理。
+"""主窗口：左侧导航（总览 / 数据管理）+ 页面栈。
 
-阶段 1 提供记录表格与增删改；阶段 2 扩展统计卡片、搜索/筛选/排序/分页（§3.2/§3.3）。
-图表由批次 7 加入。
+总览页：记录表格与增删改（阶段 1）、统计卡片、搜索/筛选/排序/分页（§3.2/§3.3）、
+图表（批次 7）。数据管理页（批次 10）：Excel 模板下载与导入（§4）。
 """
 
 from __future__ import annotations
@@ -19,6 +19,7 @@ from PySide6.QtWidgets import (
     QHeaderView,
     QLabel,
     QLineEdit,
+    QListWidget,
     QMainWindow,
     QMessageBox,
     QPushButton,
@@ -29,11 +30,13 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from bond_profit.application.excel_service import ExcelService
 from bond_profit.application.sales_service import SalesService
 from bond_profit.domain.calculations import format_money, profit_per_record
 from bond_profit.domain.models import RecordQuery, SaleRecord
 from bond_profit.ui.bar_chart import BarChart
 from bond_profit.ui import prefs, theme
+from bond_profit.ui.data_management import DataManagementPage
 from bond_profit.ui.record_dialog import RecordDialog
 
 _COLUMNS = (
@@ -53,7 +56,10 @@ _PAGE_SIZE = 20  # 每页 20 条（§3.3）
 
 class MainWindow(QMainWindow):
     def __init__(
-        self, service: SalesService, settings_path: str | None = None
+        self,
+        service: SalesService,
+        excel_service: ExcelService,
+        settings_path: str | None = None,
     ) -> None:
         super().__init__()
         self._service = service
@@ -74,7 +80,19 @@ class MainWindow(QMainWindow):
             self.resize(1080, 760)
 
         central = QWidget()
-        layout = QVBoxLayout(central)
+        root = QHBoxLayout(central)
+
+        # ---- 左侧导航（§3.1 总览 / 数据管理） --------------------------------
+        self.nav_list = QListWidget()
+        self.nav_list.addItems(["总览", "数据管理"])
+        self.nav_list.setFixedWidth(140)
+        root.addWidget(self.nav_list)
+
+        self.pages = QStackedWidget()
+        root.addWidget(self.pages, stretch=1)
+
+        overview_page = QWidget()
+        layout = QVBoxLayout(overview_page)
 
         # ---- 顶部工具栏：动作按钮 + 搜索/筛选 --------------------------------
         toolbar = QHBoxLayout()
@@ -210,6 +228,11 @@ class MainWindow(QMainWindow):
 
         layout.addWidget(self.stack)
 
+        # 总览页完成，加入页面栈；数据管理页由批次 10 提供（§4）
+        self.pages.addWidget(overview_page)
+        self.data_page = DataManagementPage(excel_service)
+        self.pages.addWidget(self.data_page)
+
         self.setCentralWidget(central)
 
         # ---- 信号 -------------------------------------------------------------
@@ -226,6 +249,9 @@ class MainWindow(QMainWindow):
         self.empty_add_button.clicked.connect(self._on_add)
         self.chart_year_combo.currentIndexChanged.connect(self._on_chart_year_changed)
         self.theme_button.clicked.connect(self._on_toggle_theme)
+        self.nav_list.currentRowChanged.connect(self._on_nav_changed)
+        self.data_page.import_completed.connect(self.refresh_records)
+        self.nav_list.setCurrentRow(0)  # 默认进入总览页
 
         find_shortcut = QShortcut(QKeySequence("Ctrl+F"), self)
         find_shortcut.activated.connect(self._on_focus_search)
@@ -236,6 +262,12 @@ class MainWindow(QMainWindow):
         self._apply_theme_mode(prefs.resolve_theme(self._settings), save=False)
 
         self.refresh_records()
+
+    # ---- 导航 -----------------------------------------------------------------
+
+    def _on_nav_changed(self, index: int) -> None:
+        """左侧导航切换页面（总览 / 数据管理）。"""
+        self.pages.setCurrentIndex(index)
 
     # ---- 主题（§3.6） ---------------------------------------------------------
 
