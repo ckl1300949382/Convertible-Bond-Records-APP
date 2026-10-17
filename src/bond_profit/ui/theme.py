@@ -154,6 +154,10 @@ QDialog {{ background-color: {p.window}; }}
 }}
 #emptyHint {{ color: {p.text_muted}; background: transparent; }}
 
+/* ---- 二级页标题与提示（阶段 6：数据管理 / 备份与恢复） ---- */
+#pageTitle {{ color: {p.text}; font-size: {FONT_SIZE_TITLE}px; font-weight: 600; background: transparent; }}
+#pageHint {{ color: {p.text_muted}; background: transparent; }}
+
 /* ==== 输入控件 ==== */
 QLineEdit, QComboBox, QSpinBox, QDateEdit {{
     background-color: {p.surface_alt}; color: {p.text};

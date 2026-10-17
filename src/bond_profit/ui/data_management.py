@@ -22,6 +22,7 @@ from PySide6.QtWidgets import (
 from bond_profit.application.excel_service import ExcelError, ExcelService
 from bond_profit.domain.models import RecordQuery
 from bond_profit.ui.import_preview_dialog import ImportPreviewDialog
+from bond_profit.ui.tokens import SPACE_L, SPACE_XL
 
 
 class DataManagementPage(QWidget):
@@ -35,11 +36,12 @@ class DataManagementPage(QWidget):
         self._excel = excel_service
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(24, 24, 24, 24)
-        layout.setSpacing(12)
+        layout.setContentsMargins(SPACE_XL, SPACE_XL, SPACE_XL, SPACE_XL)
+        layout.setSpacing(SPACE_L)
 
+        # 阶段 6：标题/提示改 objectName + QSS（theme.py #pageTitle/#pageHint）
         title = QLabel("数据管理")
-        title.setStyleSheet("font-size: 18px; font-weight: bold;")
+        title.setObjectName("pageTitle")
         layout.addWidget(title)
 
         hint = QLabel(
@@ -47,6 +49,7 @@ class DataManagementPage(QWidget):
             "再选择文件导入。导入前会逐行校验并预览，确认后一次性写入；"
             "与已有记录完全相同的行会自动跳过。"
         )
+        hint.setObjectName("pageHint")
         hint.setWordWrap(True)
         layout.addWidget(hint)
 
@@ -55,10 +58,12 @@ class DataManagementPage(QWidget):
         layout.addWidget(self.template_button)
 
         self.import_button = QPushButton("从 Excel 导入…")
+        self.import_button.setProperty("accent", True)  # 本页主操作
         self.import_button.clicked.connect(self._on_import)
         layout.addWidget(self.import_button)
 
         export_hint = QLabel("导出内容为六个业务字段加软件计算的收益列。")
+        export_hint.setObjectName("pageHint")
         export_hint.setWordWrap(True)
         layout.addWidget(export_hint)
 

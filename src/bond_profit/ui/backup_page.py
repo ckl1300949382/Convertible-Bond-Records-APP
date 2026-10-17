@@ -23,6 +23,7 @@ from PySide6.QtWidgets import (
 
 from bond_profit.infrastructure.backup import BackupInfo
 from bond_profit.ui import theme
+from bond_profit.ui.tokens import SPACE_L, SPACE_XL
 
 _COLUMNS = ("备份时间", "类型", "记录数", "数据库版本", "验证状态", "文件")
 _KIND_LABELS = {"auto": "自动", "manual": "手动", "protected": "保护"}
@@ -41,11 +42,12 @@ class BackupPage(QWidget):
         self._infos: list[BackupInfo] = []
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(24, 24, 24, 24)
-        layout.setSpacing(12)
+        layout.setContentsMargins(SPACE_XL, SPACE_XL, SPACE_XL, SPACE_XL)
+        layout.setSpacing(SPACE_L)
 
+        # 阶段 6：标题/提示改 objectName + QSS（theme.py #pageTitle/#pageHint）
         title = QLabel("备份与恢复")
-        title.setStyleSheet("font-size: 18px; font-weight: bold;")
+        title.setObjectName("pageTitle")
         layout.addWidget(title)
 
         hint = QLabel(
@@ -53,11 +55,13 @@ class BackupPage(QWidget):
             "手动备份由你选择保存位置，建议存到其他磁盘；"
             "升级前与恢复前会自动创建保护备份，不参与自动清理。"
         )
+        hint.setObjectName("pageHint")
         hint.setWordWrap(True)
         layout.addWidget(hint)
 
         buttons = QHBoxLayout()
         self.backup_now_button = QPushButton("手动备份到…")
+        self.backup_now_button.setProperty("accent", True)  # 本页主操作
         self.backup_now_button.setToolTip("选择保存目录（建议其他磁盘），生成当前数据的完整备份")
         self.check_button = QPushButton("立即检查自动备份")
         self.check_button.setToolTip("启动检查或定时检查失败后，可用此按钮重试")
@@ -72,6 +76,8 @@ class BackupPage(QWidget):
         self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.table.setSelectionMode(QTableWidget.SelectionMode.SingleSelection)
         self.table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        self.table.setAlternatingRowColors(True)  # 阶段 6：与总览表格一致的斑马纹
+        self.table.setMouseTracking(True)  # 阶段 6：行悬浮高亮
         header = self.table.horizontalHeader()
         header.setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
         header.setStretchLastSection(True)

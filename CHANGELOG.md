@@ -3,6 +3,16 @@
 格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)。
 程序版本采用 `MAJOR.MINOR.PATCH`，数据库 schema_version 独立递增（阶段 1 起）。
 
+## [未定版] - UI V2.0 阶段 6（分支 ui-v2）
+
+数据管理页与备份恢复页美化。信号、Excel 流程、备份/恢复/校验逻辑零改动；无新增依赖。
+
+- ui/data_management.py：页标题/两处提示去掉内联样式，改 objectName（#pageTitle/#pageHint）+ QSS；「从 Excel 导入…」设为 accent 主操作；页边距/间距接入令牌（SPACE_XL/SPACE_L）
+- ui/backup_page.py：标题/提示同样改 objectName + QSS；「手动备份到…」设为 accent 主操作；备份表开启斑马纹与行悬浮（与总览表格一致）；未通过验证行的错误红着色保留（item.setForeground 不受影响）；页边距/间距接入令牌
+- ui/theme.py：新增 #pageTitle / #pageHint 样式节
+- 测试：全量 pytest 真实执行 239 passed（无测试改动）
+- 视觉取证：docs/ui_v2_preview/phase6_data_dark.png、phase6_data_light.png、phase6_backup_dark.png、phase6_backup_light.png（含一条未通过验证的模拟备份行）
+
 ## [未定版] - UI V2.0 阶段 5（分支 ui-v2）
 
 图表视觉升级。绘制规则（盈红/亏绿/零中性不画柱、带符号数值标签、负值向下延伸）逐条保持；对外接口 items / set_data / set_label_color / apply_mode 不变；无新增依赖。
