@@ -45,3 +45,25 @@ def global_statistics(
         month_profit=month_profit,
         total_count=len(records),
     )
+
+
+def monthly_profits(records: list[SaleRecord], year: int) -> list[Decimal]:
+    """某年 1—12 月的月度收益（§3.5）：固定 12 项，缺失月份为 0，可含负值。"""
+    months = [Decimal("0")] * 12
+    for record in records:
+        if record.sale_date.year == year:
+            months[record.sale_date.month - 1] += profit_per_record(
+                record.sale_price, record.quantity
+            )
+    return months
+
+
+def yearly_profits(records: list[SaleRecord]) -> list[tuple[int, Decimal]]:
+    """各年份总收益（§3.5），按年份升序，可含负值。"""
+    totals: dict[int, Decimal] = {}
+    for record in records:
+        year = record.sale_date.year
+        totals[year] = totals.get(year, Decimal("0")) + profit_per_record(
+            record.sale_price, record.quantity
+        )
+    return sorted(totals.items())

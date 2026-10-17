@@ -366,3 +366,67 @@ def test_empty_state_add_button_opens_dialog(service, qtbot, monkeypatch):
     window.empty_add_button.click()
     assert opened["count"] == 1
     assert record_arg["record"] is None  # 空状态入口是新增，不是编辑
+
+
+# ---- 阶段 2 批次 7：图表（§3.5，STA-02 / STA-03） -----------------------------
+
+
+def test_charts_reflect_data_on_construction(service, qtbot):
+    service.create_record(
+        make_record(sale_date=date(2026, 3, 1), sale_price=Decimal("130.00"))
+    )  # +300
+    service.create_record(
+        make_record(sale_date=date(2025, 6, 1), sale_price=Decimal("98.50"))
+    )  # −15
+    window = MainWindow(service)
+    qtbot.addWidget(window)
+
+    # 月度图固定 12 项，默认显示最新年份 2026，缺失月份为 0（STA-02）
+    monthly = window.monthly_chart.items
+    assert len(monthly) == 12
+    assert monthly[2] == ("3 月", Decimal("300.00"))
+    assert monthly[0] == ("1 月", Decimal("0"))
+    assert window.chart_year_combo.currentData() == 2026
+
+    # 年度图年份升序，负收益保留（STA-03）
+    assert window.yearly_chart.items == [
+        ("2025", Decimal("-15.00")),
+        ("2026", Decimal("300.00")),
+    ]
+
+
+def test_chart_year_combo_switch_updates_monthly_only(service, qtbot):
+    service.create_record(make_record(sale_date=date(2026, 3, 1)))
+    service.create_record(make_record(sale_date=date(2025, 6, 1)))
+    window = MainWindow(service)
+    qtbot.addWidget(window)
+
+    window.chart_year_combo.setCurrentIndex(window.chart_year_combo.findData(2025))
+    monthly = window.monthly_chart.items
+    assert monthly[5] == ("6 月", Decimal("300.00"))
+    assert all(
+        value == Decimal("0")
+        for index, (_, value) in enumerate(monthly)
+        if index != 5
+    )
+
+    assert window.table.rowCount() == 2  # 表格不受图表年份下拉影响
+
+
+def test_charts_refresh_after_add_and_delete(service, qtbot, monkeypatch):
+    window = MainWindow(service)
+    qtbot.addWidget(window)
+    assert window.yearly_chart.items == []
+    assert not window.chart_year_combo.isEnabled()  # 无记录时年份下拉不可选
+
+    service.create_record(make_record(sale_date=date(2026, 3, 1)))
+    window.refresh_records()
+    assert window.yearly_chart.items == [("2026", Decimal("300.00"))]
+    assert window.chart_year_combo.isEnabled()
+
+    window.table.selectRow(0)
+    monkeypatch.setattr(
+        QMessageBox, "question", staticmethod(lambda *a, **k: QMessageBox.StandardButton.Yes)
+    )
+    window._on_delete()
+    assert window.yearly_chart.items == []  # 删除后图表同步清空

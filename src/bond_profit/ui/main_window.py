@@ -6,6 +6,8 @@
 
 from __future__ import annotations
 
+from decimal import Decimal
+
 import bond_profit
 from PySide6.QtCore import Qt
 from PySide6.QtGui import QKeySequence, QShortcut
@@ -29,6 +31,7 @@ from PySide6.QtWidgets import (
 from bond_profit.application.sales_service import SalesService
 from bond_profit.domain.calculations import format_money, profit_per_record
 from bond_profit.domain.models import RecordQuery, SaleRecord
+from bond_profit.ui.bar_chart import BarChart
 from bond_profit.ui.record_dialog import RecordDialog
 
 _COLUMNS = (
@@ -57,7 +60,7 @@ class MainWindow(QMainWindow):
         self._sort_desc = True  # 默认最新日期在前（§3.3）
 
         self.setWindowTitle(f"可转债收益记录 v{bond_profit.__version__}")
-        self.resize(1000, 640)
+        self.resize(1080, 760)
 
         central = QWidget()
         layout = QVBoxLayout(central)
@@ -110,6 +113,33 @@ class MainWindow(QMainWindow):
         table_page = QWidget()
         table_layout = QVBoxLayout(table_page)
         table_layout.setContentsMargins(0, 0, 0, 0)
+
+        # ---- 图表区（§3.5）：月度（可选年份）与年度柱状图 ----------------------
+        charts_row = QHBoxLayout()
+
+        monthly_frame = QFrame()
+        monthly_frame.setFrameShape(QFrame.Shape.StyledPanel)
+        monthly_box = QVBoxLayout(monthly_frame)
+        monthly_header = QHBoxLayout()
+        monthly_header.addWidget(QLabel("月度收益"))
+        monthly_header.addStretch()
+        self.chart_year_combo = QComboBox()
+        self.chart_year_combo.setEnabled(False)  # 无记录时不可选
+        monthly_header.addWidget(self.chart_year_combo)
+        monthly_box.addLayout(monthly_header)
+        self.monthly_chart = BarChart()
+        monthly_box.addWidget(self.monthly_chart)
+        charts_row.addWidget(monthly_frame, stretch=1)
+
+        yearly_frame = QFrame()
+        yearly_frame.setFrameShape(QFrame.Shape.StyledPanel)
+        yearly_box = QVBoxLayout(yearly_frame)
+        yearly_box.addWidget(QLabel("年度收益"))
+        self.yearly_chart = BarChart()
+        yearly_box.addWidget(self.yearly_chart)
+        charts_row.addWidget(yearly_frame, stretch=1)
+
+        table_layout.addLayout(charts_row)
 
         # ---- 记录表格 --------------------------------------------------------
         self.table = QTableWidget(0, len(_COLUMNS))
@@ -172,6 +202,7 @@ class MainWindow(QMainWindow):
         self.prev_button.clicked.connect(self._on_prev_page)
         self.next_button.clicked.connect(self._on_next_page)
         self.empty_add_button.clicked.connect(self._on_add)
+        self.chart_year_combo.currentIndexChanged.connect(self._on_chart_year_changed)
 
         find_shortcut = QShortcut(QKeySequence("Ctrl+F"), self)
         find_shortcut.activated.connect(self._on_focus_search)
@@ -193,6 +224,7 @@ class MainWindow(QMainWindow):
         self._page = result.page  # 页码钳制（删除当前页最后一条时自动前移）
 
         self._refresh_stat_cards()
+        self._refresh_charts()
         self.stack.setCurrentIndex(1 if self._total == 0 else 0)
 
         self.table.setRowCount(len(self._records))
@@ -241,6 +273,33 @@ class MainWindow(QMainWindow):
         self.year_profit_value.setText(f"{format_money(stats.year_profit)} 元")
         self.month_profit_value.setText(f"{format_money(stats.month_profit)} 元")
         self.total_count_value.setText(f"{stats.total_count} 笔")
+
+    def _refresh_charts(self) -> None:
+        """刷新月度/年度柱状图（§3.5），增删改后经 refresh_records 同步刷新。"""
+        years = self._service.distinct_years()
+        current = self.chart_year_combo.currentData()
+        self.chart_year_combo.blockSignals(True)
+        self.chart_year_combo.clear()
+        for year in years:
+            self.chart_year_combo.addItem(f"{year} 年", year)
+        if current in years:
+            self.chart_year_combo.setCurrentIndex(self.chart_year_combo.findData(current))
+        elif years:
+            self.chart_year_combo.setCurrentIndex(0)  # 默认最新年份
+        self.chart_year_combo.setEnabled(bool(years))
+        self.chart_year_combo.blockSignals(False)
+
+        year = self.chart_year_combo.currentData()
+        monthly = self._service.monthly_profits(year) if year is not None else [Decimal("0")] * 12
+        self.monthly_chart.set_data(
+            [(f"{month} 月", value) for month, value in enumerate(monthly, 1)]
+        )
+        self.yearly_chart.set_data(
+            [(str(year), value) for year, value in self._service.yearly_profits()]
+        )
+
+    def _on_chart_year_changed(self) -> None:
+        self._refresh_charts()
 
     def _selected_record(self) -> SaleRecord | None:
         row = self.table.currentRow()

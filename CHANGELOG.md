@@ -5,6 +5,11 @@
 
 ## [未发布] - 阶段 2：首页与统计交互
 
+- 批次 7：
+  - 领域层：monthly_profits（某年固定 12 项、缺失补 0、可含负值）、yearly_profits（年份升序聚合）
+  - 服务层：monthly_profits / yearly_profits 透传
+  - UI：自绘 BarChart 柱状图组件（盈利红/亏损绿/零中性、数值带正负号、负值柱向零轴下方延伸，无 QtCharts 依赖）；首页月度图（可选年份下拉，默认最新年份）与年度图；增删改后卡片与图表经 refresh_records 同步刷新
+  - 测试：月度/年度聚合 8 项、BarChart 3 项、图表联动 3 项；全套 121 项通过
 - 批次 6：
   - 领域层：domain/statistics.py 全局统计聚合（累计收益/本年收益/本月收益/累计卖出笔数，Decimal 纯函数，today 可注入）
   - 服务层：global_statistics 全量聚合透传，不经过搜索/筛选条件（STA-01）

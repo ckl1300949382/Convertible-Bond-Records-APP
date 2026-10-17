@@ -9,9 +9,15 @@ from __future__ import annotations
 import logging
 import math
 from dataclasses import dataclass, field
+from decimal import Decimal
 
 from bond_profit.domain.models import RecordQuery, SaleRecord
-from bond_profit.domain.statistics import GlobalStatistics, global_statistics
+from bond_profit.domain.statistics import (
+    GlobalStatistics,
+    global_statistics,
+    monthly_profits,
+    yearly_profits,
+)
 from bond_profit.domain.validation import normalize, validate_record
 from bond_profit.infrastructure.repository import RepositoryError, SalesRepository
 
@@ -71,6 +77,14 @@ class SalesService:
     def global_statistics(self) -> GlobalStatistics:
         """全局统计卡片（§3.2）：全量聚合，不经过搜索/筛选条件（STA-01）。"""
         return global_statistics(self._repository.list_all())
+
+    def monthly_profits(self, year: int) -> list[Decimal]:
+        """某年 1—12 月收益（§3.5），缺失月份为 0。"""
+        return monthly_profits(self._repository.list_all(), year)
+
+    def yearly_profits(self) -> list[tuple[int, Decimal]]:
+        """各年份总收益（§3.5），年份升序。"""
+        return yearly_profits(self._repository.list_all())
 
     # ---- 内部 -------------------------------------------------------------
 

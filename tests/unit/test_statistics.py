@@ -6,7 +6,7 @@ from datetime import date
 from decimal import Decimal
 
 from bond_profit.domain.models import SaleRecord
-from bond_profit.domain.statistics import global_statistics
+from bond_profit.domain.statistics import global_statistics, monthly_profits, yearly_profits
 
 TODAY = date(2026, 10, 17)
 
@@ -81,3 +81,70 @@ def test_rec02_edit_date_reattributes_to_new_year():
     assert old_stats.year_profit == Decimal("0")
     assert new_stats.year_profit == Decimal("300.00")
     assert old_stats.total_profit == new_stats.total_profit == Decimal("300.00")
+
+
+# ---- 月度聚合（§3.5，STA-02 / STA-03） ---------------------------------------
+
+def test_monthly_profits_empty_records_twelve_zeros():
+    months = monthly_profits([], 2026)
+    assert len(months) == 12
+    assert all(value == Decimal("0") for value in months)
+
+
+def test_monthly_profits_missing_months_are_zero():
+    records = [make_record(sale_date=date(2026, 3, 15))]  # +300
+    months = monthly_profits(records, 2026)
+    assert months[2] == Decimal("300.00")  # 3 月
+    assert months[0] == Decimal("0")  # 1 月缺失为 0（STA-02）
+    assert sum(1 for value in months if value != 0) == 1
+
+
+def test_monthly_profits_negative_month_counts_below_zero():
+    records = [make_record(sale_price=Decimal("98.50"), sale_date=date(2026, 5, 1))]  # −15
+    months = monthly_profits(records, 2026)
+    assert months[4] == Decimal("-15.00")  # 负值保留（STA-03）
+
+
+def test_monthly_profits_same_month_accumulates():
+    records = [
+        make_record(sale_date=date(2026, 8, 1), sale_price=Decimal("120.00")),  # +200
+        make_record(sale_date=date(2026, 8, 20), sale_price=Decimal("98.50"), quantity=2),  # −3
+    ]
+    months = monthly_profits(records, 2026)
+    assert months[7] == Decimal("197.00")
+
+
+def test_monthly_profits_excludes_other_years():
+    records = [make_record(sale_date=date(2025, 1, 20))]
+    months = monthly_profits(records, 2026)
+    assert all(value == Decimal("0") for value in months)
+
+
+# ---- 年度聚合（§3.5） ---------------------------------------------------------
+
+def test_yearly_profits_empty_records():
+    assert yearly_profits([]) == []
+
+
+def test_yearly_profits_ascending_order():
+    records = [
+        make_record(sale_date=date(2026, 1, 1)),  # +300
+        make_record(sale_date=date(2024, 5, 1), sale_price=Decimal("98.50")),  # −15
+        make_record(sale_date=date(2025, 9, 1), sale_price=Decimal("125.50"), quantity=20),  # +510
+    ]
+    years = yearly_profits(records)
+    assert [year for year, _ in years] == [2024, 2025, 2026]  # 年份升序
+    assert [value for _, value in years] == [
+        Decimal("-15.00"),
+        Decimal("510.00"),
+        Decimal("300.00"),
+    ]
+
+
+def test_yearly_profits_same_year_accumulates():
+    records = [
+        make_record(sale_date=date(2026, 1, 1)),  # +300
+        make_record(sale_date=date(2026, 6, 1), sale_price=Decimal("98.50")),  # −15
+    ]
+    years = yearly_profits(records)
+    assert years == [(2026, Decimal("285.00"))]
