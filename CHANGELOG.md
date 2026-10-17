@@ -3,6 +3,23 @@
 格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)。
 程序版本采用 `MAJOR.MINOR.PATCH`，数据库 schema_version 独立递增（阶段 1 起）。
 
+## [1.0.0] - 2026-10-17 - 阶段 5：Windows 发布与综合验收
+
+- 批次 19（收官定版）：
+  - 版本号 0.5.0 → 1.0.0（§11.4 正式发布版本）；阶段 5 验收清单见 docs/ACCEPTANCE_CHECKLIST.md（§12 十二项人工清单逐项展开）
+  - 全量回归通过后重建发布包：dist/可转债收益记录_v1.0.0_win64.zip
+  - Git tag：v1.0.0（§11.4 发布关联 commit/tag）
+- 批次 18（绿色版打包）：
+  - scripts/build_release.ps1：一键构建——PyInstaller（onedir + windowed，正式中文名「可转债收益记录.exe」）→ 拷入版本说明与使用说明 → 启动冒烟（进程存活检查、单实例冲突提示）→ 压缩发布包；产物入 dist/、build/ 不入 Git（架构决策 6）；脚本必须 UTF-8 with BOM（PowerShell 5 按 ANSI 读无 BOM 文件会乱码）
+  - scripts/run_app.py：打包入口（app.py 无 __main__ 守卫，不能直接作为 PyInstaller 目标）
+  - docs/版本说明.txt、docs/使用说明.txt：随包分发的发布文档（§11.1），含数据/备份位置、升级说明与快速上手
+  - 新增构建依赖 pyinstaller（[project.optional-dependencies].build，仅构建用，运行包零影响）；本机实测：干净启动、自动初始化数据目录/日志/备份（PKG-01 本机部分通过）
+- 批次 17（稳定性与日志复制）：
+  - ui/error_hook.py：全局未捕获异常兜底——写完整堆栈日志 + 中文弹窗提示（含「打开日志」指引），不强制退出；数据层受控异常不经此钩子
+  - 主窗口工具栏「打开日志」按钮：直达日志文件夹，便于整包拷贝反馈；无日志目录时友好提示
+  - 中文文案巡检：全部 UI 模块零英文残留，无需改动
+  - 测试：异常钩子 4 项、日志入口 2 项；230 项通过
+
 ## [0.5.0] - 2026-10-17 - 阶段 4：备份、恢复与版本迁移
 
 - 批次 16（备份 UI + 收官）：
