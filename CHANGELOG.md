@@ -3,6 +3,20 @@
 格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)。
 程序版本采用 `MAJOR.MINOR.PATCH`，数据库 schema_version 独立递增（阶段 1 起）。
 
+## [未定版] - UI V2.0 阶段 8（分支 ui-v2）
+
+回归与发布。业务规则、数据库结构、Excel 规则、备份恢复逻辑零改动；无新增依赖。
+
+- docs/版本说明.txt：新增「界面焕新（UI V2.0）」条目（随包发布）
+- 回归：全量 pytest 真实执行 239 passed（阶段 0 基线 230 → 新增 widgets 5 项 + 主题断言扩展；业务测试零语义改动）
+- 打包验证：scripts/build_release.ps1 实际执行通过——PyInstaller onedir 构建完成、构建冒烟通过（进程存活并正常响应关闭）、压缩产物 dist\可转债收益记录_v1.0.0_win64.zip（约 52 MB）
+- 阶段 0~8 视觉取证汇总：docs/ui_v2_preview/（phase2~phase7 深浅主题截图）
+- 已知问题（汇总）：
+  - QT_QPA_PLATFORM=offscreen 缺 CJK 字体（截图取证改用真实 Windows 平台）
+  - QDateEdit 日历弹层星期表头颜色由 Qt 内部格式控制，深色模式对比度可能偏弱
+  - 月度图负值柱较矮时数值标签与类别标签间距较近（阶段 5 布局规则所致）
+  - 阶段 7 高 DPI 为 QT_SCALE_FACTOR 渲染核验，未做物理显示器实测
+
 ## [未定版] - UI V2.0 阶段 7（分支 ui-v2）
 
 动效与高 DPI。导航信号语义、页面切换行为、偏好存储零改动（无 prefs 新键）；无新增依赖。
