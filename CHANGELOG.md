@@ -3,6 +3,19 @@
 格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)。
 程序版本采用 `MAJOR.MINOR.PATCH`，数据库 schema_version 独立递增（阶段 1 起）。
 
+## [未定版] - UI V2.0 阶段 5（分支 ui-v2）
+
+图表视觉升级。绘制规则（盈红/亏绿/零中性不画柱、带符号数值标签、负值向下延伸）逐条保持；对外接口 items / set_data / set_label_color / apply_mode 不变；无新增依赖。
+
+- ui/bar_chart.py：
+  - 圆角柱（半径 3px，圆角只留在自由端：正值柱圆顶、负值柱圆底）+ 纵向渐变（自由端微亮、靠零轴为基色）
+  - 淡网格：零轴上下各一条半程虚线（取色 chart_grid 令牌，弱于零轴线）
+  - 悬浮高亮（柱体提亮 112%）+ 数值提示（QToolTip：类别：±金额 元）
+  - 入场生长动画约 200ms（QVariantAnimation + OutCubic）；数据未变化时不重播，避免搜索逐键刷新闪烁；不可见（含测试场景）直接落定完整柱高
+  - 内部新增 _color_grid（默认取 _LIGHT_COLORS["grid"]），apply_mode 随主题同步
+- 测试：全量 pytest 真实执行 239 passed（tests/ui/test_bar_chart.py 零改动，冒烟断言全部通过）
+- 视觉取证：docs/ui_v2_preview/phase5_dark.png、phase5_light.png（正负混合 + 跨年数据，独立临时数据库模拟）
+
 ## [未定版] - UI V2.0 阶段 4（分支 ui-v2）
 
 表格与弹窗美化。信号、排序/分页/搜索/校验/保存逻辑零改动；无新增依赖。
