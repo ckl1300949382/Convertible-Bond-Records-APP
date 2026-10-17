@@ -3,6 +3,18 @@
 格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)。
 程序版本采用 `MAJOR.MINOR.PATCH`，数据库 schema_version 独立递增（阶段 1 起）。
 
+## [未定版] - UI V2.0 阶段 2（分支 ui-v2）
+
+侧边导航与顶部操作区改版。信号、快捷键、导航与筛选逻辑零改动；无新增依赖。
+
+- ui/theme.py：新增侧边导航 `#navSidebar` 专属 QSS——选中项强调色 3px 左侧指示条 + 染色底 + 加粗，文字位置经 padding 补偿不偏移；通用 QListWidget 规则保持不变（不影响其他列表）
+- ui/main_window.py：
+  - 侧边导航设置 objectName（navSidebar），宽度 140 → 148
+  - 「新增记录」与空状态「新增第一条记录」设为 accent 主按钮（复用阶段 1 备好的 `QPushButton[accent="true"]` 样式）
+  - 总览页根布局边距/间距接入间距令牌（SPACE_L/SPACE_M），工具栏同组按钮间距收紧（SPACE_S）
+- 测试：全量 pytest 真实执行 234 passed（无测试语义改动）
+- 视觉取证：docs/ui_v2_preview/phase2_dark.png、phase2_light.png（独立临时数据库模拟数据）
+
 ## [未定版] - UI V2.0 阶段 0+1（分支 ui-v2）
 
 视觉改版第一批：设计令牌与双主题 QSS 基座。业务规则、数据库结构、Excel 规则、备份恢复逻辑零改动；无新增第三方依赖。

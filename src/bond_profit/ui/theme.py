@@ -245,6 +245,14 @@ QListWidget::item:selected {{
     background: {p.accent_tint}; color: {p.accent}; font-weight: 600;
 }}
 
+/* ---- 侧边导航强化（主窗口 #navSidebar；选中项加强调色指示条） ---- */
+#navSidebar::item {{ padding: 9px 12px; margin: 3px 6px; }}
+#navSidebar::item:selected {{
+    background: {p.accent_tint}; color: {p.accent};
+    border-left: 3px solid {p.accent}; padding-left: 9px;
+    font-weight: 600;
+}}
+
 /* ==== 菜单 / 消息框 / 状态栏 ==== */
 QMenu {{
     background-color: {p.surface}; color: {p.text};

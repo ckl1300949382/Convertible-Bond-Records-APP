@@ -44,6 +44,7 @@ from bond_profit.ui.backup_page import BackupPage
 from bond_profit.ui.bar_chart import BarChart
 from bond_profit.ui.data_management import DataManagementPage
 from bond_profit.ui.record_dialog import RecordDialog
+from bond_profit.ui.tokens import SPACE_L, SPACE_M, SPACE_S
 
 _COLUMNS = (
     "卖出日期",
@@ -91,11 +92,15 @@ class MainWindow(QMainWindow):
 
         central = QWidget()
         root = QHBoxLayout(central)
+        # 阶段 2：边距/间距接入间距令牌，导航与页面间留白更从容
+        root.setContentsMargins(SPACE_L, SPACE_M, SPACE_L, SPACE_L)
+        root.setSpacing(SPACE_M)
 
         # ---- 左侧导航（§3.1 总览 / 数据管理） --------------------------------
         self.nav_list = QListWidget()
+        self.nav_list.setObjectName("navSidebar")  # 侧边导航专属 QSS（theme.py）
         self.nav_list.addItems(["总览", "数据管理", "备份与恢复"])
-        self.nav_list.setFixedWidth(140)
+        self.nav_list.setFixedWidth(148)
         root.addWidget(self.nav_list)
 
         self.pages = QStackedWidget()
@@ -106,7 +111,9 @@ class MainWindow(QMainWindow):
 
         # ---- 顶部工具栏：动作按钮 + 搜索/筛选 --------------------------------
         toolbar = QHBoxLayout()
+        toolbar.setSpacing(SPACE_S)  # 同组按钮紧凑排列
         self.add_button = QPushButton("新增记录")
+        self.add_button.setProperty("accent", True)  # 主操作：accent 强调样式
         self.edit_button = QPushButton("编辑记录")
         self.delete_button = QPushButton("删除记录")
         for button in (self.add_button, self.edit_button, self.delete_button):
@@ -236,6 +243,7 @@ class MainWindow(QMainWindow):
         button_row = QHBoxLayout()
         button_row.addStretch()
         self.empty_add_button = QPushButton("新增第一条记录")
+        self.empty_add_button.setProperty("accent", True)  # 空状态主入口同样强调
         button_row.addWidget(self.empty_add_button)
         button_row.addStretch()
         empty_layout.addLayout(button_row)
