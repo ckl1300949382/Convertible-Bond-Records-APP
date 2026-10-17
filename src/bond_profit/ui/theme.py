@@ -209,6 +209,9 @@ QPushButton {{
 }}
 QPushButton:hover {{ background-color: {p.hover_bg}; border-color: {p.border_strong}; }}
 QPushButton:pressed {{ background-color: {p.pressed_bg}; }}
+/* 默认按钮（弹窗/消息框的确认键，阶段 4）：强调色文字描边，不抢 accent 主按钮底色。
+   须置于 [accent] 与 :disabled 规则之前，保证 accent 主按钮与禁用态优先。 */
+QPushButton:default {{ color: {p.accent}; border-color: {p.accent}; font-weight: 600; }}
 QPushButton:disabled {{
     color: {p.text_muted}; background-color: {p.surface_alt};
     border-color: {p.border};
@@ -233,6 +236,7 @@ QTableWidget {{
     selection-background-color: {p.selection}; selection-color: {p.text};
     alternate-background-color: {p.zebra};
 }}
+QTableWidget::item:hover {{ background-color: {p.hover_bg}; }}
 QTableCornerButton::section {{ background-color: {p.surface_alt}; border: none; }}
 QHeaderView::section {{
     background-color: {p.surface_alt}; color: {p.text_muted};

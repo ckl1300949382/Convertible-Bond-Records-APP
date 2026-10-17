@@ -3,6 +3,16 @@
 格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)。
 程序版本采用 `MAJOR.MINOR.PATCH`，数据库 schema_version 独立递增（阶段 1 起）。
 
+## [未定版] - UI V2.0 阶段 4（分支 ui-v2）
+
+表格与弹窗美化。信号、排序/分页/搜索/校验/保存逻辑零改动；无新增依赖。
+
+- ui/main_window.py：记录表格开启斑马纹（setAlternatingRowColors，QSS 交替行底色阶段 1 已备）与行悬浮高亮（setMouseTracking + QSS item:hover）
+- ui/record_dialog.py：「保存」按钮设为 accent 主操作样式；弹窗表单列间距接入间距令牌（SPACE_L）
+- ui/theme.py：新增表格行悬浮底色规则；新增默认按钮（`:default`，弹窗/消息框确认键）强调色文字与描边——规则置于 [accent] 与 :disabled 之前，accent 主按钮与禁用态样式优先不受影响；消息框外观沿用阶段 1 全局 QSS
+- 测试：全量 pytest 真实执行 239 passed（无测试改动）
+- 视觉取证：docs/ui_v2_preview/phase4_dark.png、phase4_light.png、phase4_dialog_dark.png、phase4_dialog_light.png（独立临时数据库模拟数据）
+
 ## [未定版] - UI V2.0 阶段 3（分支 ui-v2）
 
 统计卡与空状态改版。统计口径（STA-01 全局值）、刷新时机、空状态行为零改动；无新增依赖。

@@ -29,6 +29,7 @@ from PySide6.QtWidgets import (
 from bond_profit.application.sales_service import SalesService
 from bond_profit.domain.models import SaleRecord
 from bond_profit.ui import theme
+from bond_profit.ui.tokens import SPACE_L
 
 # 错误信息关键字 → 字段（领域层错误信息措辞可控，映射稳定）
 _FIELD_KEYWORDS = (
@@ -64,7 +65,7 @@ class RecordDialog(QDialog):
     def _build_ui(self) -> None:
         layout = QVBoxLayout(self)
         grid = QGridLayout()
-        grid.setHorizontalSpacing(16)
+        grid.setHorizontalSpacing(SPACE_L)  # 阶段 4：间距接入令牌
 
         self.name_edit = QLineEdit()
         self.code_edit = QLineEdit()
@@ -117,6 +118,7 @@ class RecordDialog(QDialog):
         buttons.addStretch()
         self.cancel_button = QPushButton("取消")
         self.save_button = QPushButton("保存")
+        self.save_button.setProperty("accent", True)  # 阶段 4：保存为主操作，accent 强调
         self.save_button.setDefault(True)
         buttons.addWidget(self.cancel_button)
         buttons.addWidget(self.save_button)

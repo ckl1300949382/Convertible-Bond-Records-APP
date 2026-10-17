@@ -206,6 +206,8 @@ class MainWindow(QMainWindow):
         self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self.table.setSelectionMode(QTableWidget.SelectionMode.SingleSelection)
         self.table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
+        self.table.setAlternatingRowColors(True)  # 阶段 4：斑马纹（QSS 备有交替行底色）
+        self.table.setMouseTracking(True)  # 阶段 4：开启行悬浮高亮（QSS item:hover）
         self.table.setSortingEnabled(False)  # 手动管理排序，避免按文本排序
         header = self.table.horizontalHeader()
         header.setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
