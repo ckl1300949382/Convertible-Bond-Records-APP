@@ -10,12 +10,13 @@ from __future__ import annotations
 from decimal import Decimal
 
 import bond_profit
-from PySide6.QtCore import Qt, QTimer, QUrl
+from PySide6.QtCore import QEasingCurve, Qt, QTimer, QUrl, QVariantAnimation
 from PySide6.QtGui import QDesktopServices, QKeySequence, QShortcut
 from PySide6.QtWidgets import (
     QApplication,
     QComboBox,
     QFrame,
+    QGraphicsOpacityEffect,
     QHBoxLayout,
     QHeaderView,
     QLabel,
@@ -64,6 +65,7 @@ _PAGE_SIZE = 20  # 每页 20 条（§3.3）
 
 class MainWindow(QMainWindow):
     _AUTO_BACKUP_INTERVAL_MS = 30 * 60 * 1000  # §6.1：运行期间每 30 分钟检查一次
+    _PAGE_FADE_MS = 120  # 阶段 7：页面切换淡入时长（克制）
 
     def __init__(
         self,
@@ -307,6 +309,14 @@ class MainWindow(QMainWindow):
         if backup_service is not None:
             self._backup_timer.start()
 
+        # 阶段 7：页面切换淡入动画（QGraphicsOpacityEffect，120ms）
+        self._fade_widget: QWidget | None = None
+        self._page_fade = QVariantAnimation(self)
+        self._page_fade.setDuration(self._PAGE_FADE_MS)
+        self._page_fade.setEasingCurve(QEasingCurve.Type.OutCubic)
+        self._page_fade.valueChanged.connect(self._on_page_fade_step)
+        self._page_fade.finished.connect(self._on_page_fade_done)
+
         # 应用已保存的主题（§3.6：首次跟随 Windows，手动切换后记住选择）
         self._apply_theme_mode(prefs.resolve_theme(self._settings), save=False)
 
@@ -316,8 +326,32 @@ class MainWindow(QMainWindow):
     # ---- 导航 -----------------------------------------------------------------
 
     def _on_nav_changed(self, index: int) -> None:
-        """左侧导航切换页面（总览 / 数据管理 / 备份与恢复）。"""
+        """左侧导航切换页面（总览 / 数据管理 / 备份与恢复），并做轻淡入。"""
         self.pages.setCurrentIndex(index)
+        # 阶段 7：约 120ms 透明度淡入；窗口不可见（含测试场景）直接跳过
+        widget = self.pages.currentWidget()
+        if widget is None or not self.isVisible():
+            return
+        self._page_fade.stop()
+        self._fade_widget = widget
+        effect = QGraphicsOpacityEffect(widget)
+        effect.setOpacity(0.55)
+        widget.setGraphicsEffect(effect)
+        self._page_fade.setStartValue(0.55)
+        self._page_fade.setEndValue(1.0)
+        self._page_fade.start()
+
+    def _on_page_fade_step(self, value: float) -> None:
+        widget = self._fade_widget
+        effect = widget.graphicsEffect() if widget is not None else None
+        if isinstance(effect, QGraphicsOpacityEffect):
+            effect.setOpacity(float(value))
+
+    def _on_page_fade_done(self) -> None:
+        widget = self._fade_widget
+        if widget is not None:
+            widget.setGraphicsEffect(None)  # 移除特效，避免常驻渲染开销
+            self._fade_widget = None
 
     def _on_export_filtered(self) -> None:
         """按总览页当前搜索/筛选条件导出全集（§4.5 XLS-09）。"""

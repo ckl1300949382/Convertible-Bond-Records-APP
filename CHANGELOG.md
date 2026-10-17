@@ -3,6 +3,15 @@
 格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)。
 程序版本采用 `MAJOR.MINOR.PATCH`，数据库 schema_version 独立递增（阶段 1 起）。
 
+## [未定版] - UI V2.0 阶段 7（分支 ui-v2）
+
+动效与高 DPI。导航信号语义、页面切换行为、偏好存储零改动（无 prefs 新键）；无新增依赖。
+
+- ui/main_window.py：左侧导航切换页面时新增约 120ms 透明度淡入（QGraphicsOpacityEffect + QVariantAnimation，OutCubic）；动画结束即移除特效，避免常驻渲染开销；窗口不可见（含全部测试场景）时跳过动画直接切页
+- 高 DPI 核验：以 QT_SCALE_FACTOR=1.25 / 1.5 渲染截图（docs/ui_v2_preview/phase7_dpi125.png、phase7_dpi15.png），文字/按钮/表格/卡片无裁切无重叠（注：为渲染因子核验，非物理显示器实测）
+- 测试：全量 pytest 真实执行 239 passed（无测试改动）
+- 已知问题：月度图负值柱较矮时数值标签与类别标签间距较近（阶段 5 布局规则所致，非本次引入）
+
 ## [未定版] - UI V2.0 阶段 6（分支 ui-v2）
 
 数据管理页与备份恢复页美化。信号、Excel 流程、备份/恢复/校验逻辑零改动；无新增依赖。
