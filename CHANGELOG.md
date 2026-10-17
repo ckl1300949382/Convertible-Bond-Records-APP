@@ -3,6 +3,16 @@
 格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)。
 程序版本采用 `MAJOR.MINOR.PATCH`，数据库 schema_version 独立递增（阶段 1 起）。
 
+## [未定版] - UI V2.0 阶段 3（分支 ui-v2）
+
+统计卡与空状态改版。统计口径（STA-01 全局值）、刷新时机、空状态行为零改动；无新增依赖。
+
+- ui/widgets.py（新增）：StatCard 统计卡组件——标题 + 大号数值（20px/600）；金额按盈亏着色（盈利红/亏损绿/零收益中性，色值随主题令牌）；金额「可见且变化」时做 180ms count-up（QVariantAnimation，无新依赖），窗口隐藏（含全部测试场景）时直接落定最终文本，保证文本随时可断言；笔数卡中性色无动画
+- ui/main_window.py：四张统计卡换用 StatCard（total_profit_value 等值标签属性名保持不变）；累计收益为主卡；空状态新增副标题「点击下方按钮，记下第一笔转债卖出」（empty_title 文本不变）
+- ui/theme.py：新增 statCard / statCardMain / statCardTitle / statCardValue 与 emptyTitle / emptyHint 样式节（主卡 = 纵向渐变微光底 + 强调色描边）
+- 测试：新增 tests/unit/test_widgets.py 5 项（文本格式、盈亏着色双主题、笔数卡、隐藏即落定）；全量 pytest 真实执行 239 passed
+- 视觉取证：docs/ui_v2_preview/phase3_dark.png、phase3_light.png、phase3_empty.png（独立临时数据库模拟数据）
+
 ## [未定版] - UI V2.0 阶段 2（分支 ui-v2）
 
 侧边导航与顶部操作区改版。信号、快捷键、导航与筛选逻辑零改动；无新增依赖。

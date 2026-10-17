@@ -16,6 +16,10 @@ from bond_profit.ui.tokens import (
     FONT_FAMILY,
     FONT_SIZE_BASE,
     FONT_SIZE_MD,
+    FONT_SIZE_SM,
+    FONT_SIZE_TITLE,
+    FONT_SIZE_XL,
+    RADIUS_L,
     RADIUS_M,
     RADIUS_S,
     Palette,
@@ -129,6 +133,26 @@ QDialog {{ background-color: {p.window}; }}
     border: 1px solid {p.border};
     border-radius: {RADIUS_M}px;
 }}
+
+/* ---- 统计卡（阶段 3；主卡渐变微光 + 强调色描边） ---- */
+#statCard {{
+    background-color: {p.surface};
+    border: 1px solid {p.border}; border-radius: {RADIUS_L}px;
+}}
+#statCardMain {{
+    background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1,
+        stop:0 {p.surface}, stop:1 {p.accent_tint});
+    border: 1px solid {p.accent}; border-radius: {RADIUS_L}px;
+}}
+#statCardTitle {{ color: {p.text_muted}; font-size: {FONT_SIZE_SM}px; }}
+#statCardValue {{ font-size: {FONT_SIZE_XL}px; font-weight: 600; }}
+
+/* ---- 空状态（阶段 3） ---- */
+#emptyTitle {{
+    color: {p.text}; font-size: {FONT_SIZE_TITLE}px; font-weight: 600;
+    background: transparent;
+}}
+#emptyHint {{ color: {p.text_muted}; background: transparent; }}
 
 /* ==== 输入控件 ==== */
 QLineEdit, QComboBox, QSpinBox, QDateEdit {{

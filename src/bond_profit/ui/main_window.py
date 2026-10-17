@@ -45,6 +45,7 @@ from bond_profit.ui.bar_chart import BarChart
 from bond_profit.ui.data_management import DataManagementPage
 from bond_profit.ui.record_dialog import RecordDialog
 from bond_profit.ui.tokens import SPACE_L, SPACE_M, SPACE_S
+from bond_profit.ui.widgets import StatCard
 
 _COLUMNS = (
     "卖出日期",
@@ -153,15 +154,16 @@ class MainWindow(QMainWindow):
         layout.addLayout(toolbar)
 
         # ---- 统计卡片：全局值，不随列表搜索/筛选变化（§3.2，STA-01） ----------
+        # 阶段 3：累计收益为主卡（渐变微光 + 强调描边）；金额卡随正负着色
         cards_row = QHBoxLayout()
-        self.total_profit_value = self._make_stat_card(
-            cards_row, "累计收益"
-        )
-        self.year_profit_value = self._make_stat_card(cards_row, "本年收益")
-        self.month_profit_value = self._make_stat_card(cards_row, "本月收益")
-        self.total_count_value = self._make_stat_card(
-            cards_row, "累计卖出笔数"
-        )
+        self.total_profit_card = self._make_stat_card(cards_row, "累计收益", accent=True)
+        self.total_profit_value = self.total_profit_card.value_label
+        self.year_profit_card = self._make_stat_card(cards_row, "本年收益")
+        self.year_profit_value = self.year_profit_card.value_label
+        self.month_profit_card = self._make_stat_card(cards_row, "本月收益")
+        self.month_profit_value = self.month_profit_card.value_label
+        self.total_count_card = self._make_stat_card(cards_row, "累计卖出笔数")
+        self.total_count_value = self.total_count_card.value_label
         layout.addLayout(cards_row)
 
         # ---- 页面栈：记录表格页 / 空状态页 ------------------------------------
@@ -238,8 +240,14 @@ class MainWindow(QMainWindow):
         empty_layout = QVBoxLayout(empty_page)
         empty_layout.addStretch()
         self.empty_title = QLabel("还没有任何卖出记录")
+        self.empty_title.setObjectName("emptyTitle")  # 阶段 3：空状态视觉层级
         self.empty_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         empty_layout.addWidget(self.empty_title)
+        self.empty_hint = QLabel("点击下方按钮，记下第一笔转债卖出")
+        self.empty_hint.setObjectName("emptyHint")
+        self.empty_hint.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        empty_layout.addWidget(self.empty_hint)
+        empty_layout.addSpacing(SPACE_L)
         button_row = QHBoxLayout()
         button_row.addStretch()
         self.empty_add_button = QPushButton("新增第一条记录")
@@ -455,26 +463,22 @@ class MainWindow(QMainWindow):
         self.prev_button.setEnabled(self._page > 1)
         self.next_button.setEnabled(self._page < last_page)
 
-    def _make_stat_card(self, row: QHBoxLayout, title: str) -> QLabel:
-        """构建一张统计卡片，返回值标签（§3.2）。"""
-        frame = QFrame()
-        frame.setFrameShape(QFrame.Shape.StyledPanel)
-        box = QVBoxLayout(frame)
-        title_label = QLabel(title)
-        value_label = QLabel("0.00")
-        value_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        box.addWidget(title_label)
-        box.addWidget(value_label)
-        row.addWidget(frame, stretch=1)
-        return value_label
+    def _make_stat_card(self, row: QHBoxLayout, title: str, accent: bool = False) -> StatCard:
+        """构建一张统计卡（阶段 3 StatCard），返回卡片实例（§3.2）。"""
+        card = StatCard(title, accent=accent)
+        row.addWidget(card, stretch=1)
+        return card
 
     def _refresh_stat_cards(self) -> None:
-        """刷新四张全局统计卡片（§3.2），显示带正负号与单位。"""
+        """刷新四张全局统计卡片（§3.2），显示带正负号与单位。
+
+        金额卡按盈亏着色；窗口可见且金额变化时由 StatCard 做 count-up 过渡。
+        """
         stats = self._service.global_statistics()
-        self.total_profit_value.setText(f"{format_money(stats.total_profit)} 元")
-        self.year_profit_value.setText(f"{format_money(stats.year_profit)} 元")
-        self.month_profit_value.setText(f"{format_money(stats.month_profit)} 元")
-        self.total_count_value.setText(f"{stats.total_count} 笔")
+        self.total_profit_card.set_money(stats.total_profit)
+        self.year_profit_card.set_money(stats.year_profit)
+        self.month_profit_card.set_money(stats.month_profit)
+        self.total_count_card.set_count(stats.total_count)
 
     def _refresh_charts(self) -> None:
         """刷新月度/年度柱状图（§3.5），增删改后经 refresh_records 同步刷新。"""
