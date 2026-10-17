@@ -55,6 +55,10 @@ class SalesService:
         """删除记录；失败抛出 RepositoryError 由调用方提示。"""
         self._repository.delete(record_id)
 
+    def add_many(self, records: list[SaleRecord]) -> list[SaleRecord]:
+        """批量新增（§4.3 Excel 导入）：先标准化再单事务写入，全有或全无。"""
+        return self._repository.add_many([normalize(r) for r in records])
+
     def list_records(self) -> list[SaleRecord]:
         return self._repository.list_all()
 

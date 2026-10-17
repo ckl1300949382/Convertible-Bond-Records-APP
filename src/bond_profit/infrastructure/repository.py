@@ -83,6 +83,45 @@ class SalesRepository:
             updated_at=datetime.fromisoformat(now),
         )
 
+    def add_many(self, records: list[SaleRecord]) -> list[SaleRecord]:
+        """单事务批量写入（§4.3 Excel 导入）：任一条失败全部回滚。"""
+        if not records:
+            return []
+        now = datetime.now().isoformat(timespec="seconds")
+        added: list[SaleRecord] = []
+        try:
+            with self._conn:  # 同一事务：异常自动回滚（XLS-05）
+                for record in records:
+                    cursor = self._conn.execute(
+                        _INSERT_SQL,
+                        (
+                            record.bond_name,
+                            record.bond_code,
+                            record.sale_date.isoformat(),
+                            yuan_to_cents(record.sale_price),
+                            record.quantity,
+                            record.note,
+                            now,
+                            now,
+                        ),
+                    )
+                    added.append(
+                        SaleRecord(
+                            bond_name=record.bond_name,
+                            bond_code=record.bond_code,
+                            sale_date=record.sale_date,
+                            sale_price=record.sale_price,
+                            quantity=record.quantity,
+                            note=record.note,
+                            id=cursor.lastrowid,
+                            created_at=datetime.fromisoformat(now),
+                            updated_at=datetime.fromisoformat(now),
+                        )
+                    )
+        except sqlite3.Error as exc:
+            raise RepositoryError("数据库写入失败，本次导入未保存任何记录") from exc
+        return added
+
     def update(self, record: SaleRecord) -> SaleRecord:
         """按 id 更新记录；记录不存在时抛出 RepositoryError。"""
         if record.id is None:
