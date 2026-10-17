@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import date
 from decimal import Decimal
+from pathlib import Path
 
 import pytest
 from PySide6.QtCore import Qt
@@ -551,3 +552,42 @@ def test_import_completed_signal_refreshes_overview(service, qtbot):
     window.data_page.import_completed.emit()  # 模拟导入完成回调
 
     assert window.count_label.text() == "共 1 条记录"
+
+
+# ---- 日志入口（阶段 5 日志复制） ------------------------------------------------
+
+def test_open_logs_opens_log_folder(service, qtbot, tmp_path, monkeypatch):
+    tmp_path.mkdir(exist_ok=True)
+    monkeypatch.setattr(
+        main_window_module, "current_log_dir", lambda: tmp_path
+    )
+    opened = []
+    monkeypatch.setattr(
+        main_window_module.QDesktopServices,
+        "openUrl",
+        staticmethod(lambda url: opened.append(url)),
+    )
+
+    window = MainWindow(service, ExcelService(service))
+    qtbot.addWidget(window)
+    window.log_button.click()
+
+    assert len(opened) == 1
+    assert Path(opened[0].toLocalFile()) == tmp_path
+
+
+def test_open_logs_without_log_dir_shows_hint(service, qtbot, monkeypatch):
+    monkeypatch.setattr(main_window_module, "current_log_dir", lambda: None)
+    hints = []
+    monkeypatch.setattr(
+        main_window_module.QMessageBox,
+        "information",
+        staticmethod(lambda *a, **k: hints.append(a)),
+    )
+
+    window = MainWindow(service, ExcelService(service))
+    qtbot.addWidget(window)
+    window.log_button.click()  # 无日志目录：不崩溃，仅提示
+
+    assert len(hints) == 1
+    assert "尚未生成日志" in hints[0][2]

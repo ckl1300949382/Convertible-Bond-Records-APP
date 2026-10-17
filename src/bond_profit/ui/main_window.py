@@ -10,8 +10,8 @@ from __future__ import annotations
 from decimal import Decimal
 
 import bond_profit
-from PySide6.QtCore import Qt, QTimer
-from PySide6.QtGui import QKeySequence, QShortcut
+from PySide6.QtCore import Qt, QTimer, QUrl
+from PySide6.QtGui import QDesktopServices, QKeySequence, QShortcut
 from PySide6.QtWidgets import (
     QApplication,
     QComboBox,
@@ -38,6 +38,7 @@ from bond_profit.domain.calculations import format_money, profit_per_record
 from bond_profit.domain.money import cents_to_yuan
 from bond_profit.domain.models import RecordQuery, SaleRecord
 from bond_profit.infrastructure.backup import BackupError
+from bond_profit.infrastructure.logging import current_log_dir
 from bond_profit.ui import prefs, theme
 from bond_profit.ui.backup_page import BackupPage
 from bond_profit.ui.bar_chart import BarChart
@@ -135,6 +136,12 @@ class MainWindow(QMainWindow):
         self.theme_button.setFixedWidth(64)
         self.theme_button.setToolTip("在浅色/深色之间切换，选择会被记住")
         toolbar.addWidget(self.theme_button)
+
+        # 日志入口（阶段 5）：打开日志文件夹，便于用户整包拷贝反馈问题
+        self.log_button = QPushButton("打开日志")
+        self.log_button.setToolTip("打开日志文件夹；反馈问题时可将整个文件夹发给我们")
+        self.log_button.clicked.connect(self._on_open_logs)
+        toolbar.addWidget(self.log_button)
 
         layout.addLayout(toolbar)
 
@@ -355,6 +362,14 @@ class MainWindow(QMainWindow):
         )
 
     # ---- 主题（§3.6） ---------------------------------------------------------
+
+    def _on_open_logs(self) -> None:
+        """打开日志文件夹（阶段 5 日志复制入口）。"""
+        log_dir = current_log_dir()
+        if log_dir is None or not log_dir.is_dir():
+            QMessageBox.information(self, "打开日志", "尚未生成日志文件夹。")
+            return
+        QDesktopServices.openUrl(QUrl.fromLocalFile(str(log_dir)))
 
     def _apply_theme_mode(self, mode: str, save: bool = True) -> None:
         """应用浅/深色主题；save=True 时把选择写入偏好。"""

@@ -30,6 +30,7 @@ from bond_profit.infrastructure.database import (
 )
 from bond_profit.infrastructure.logging import setup_logging
 from bond_profit.infrastructure.repository import SalesRepository
+from bond_profit.ui.error_hook import install_excepthook
 from bond_profit.ui.main_window import MainWindow
 
 logger = logging.getLogger(__name__)
@@ -39,6 +40,7 @@ _SINGLE_INSTANCE_KEY = "BondProfit-SingleInstance"
 
 def main() -> int:
     setup_logging()
+    install_excepthook()  # 阶段 5：未捕获异常写日志 + 中文提示，不强制退出
     logger.info("应用启动，版本 %s", bond_profit.__version__)
 
     app = QApplication(sys.argv)

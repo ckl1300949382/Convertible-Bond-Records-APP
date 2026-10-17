@@ -17,6 +17,13 @@ _MAX_BYTES = 1 * 1024 * 1024
 _BACKUP_COUNT = 5
 _FORMAT = "%(asctime)s [%(levelname)s] %(name)s: %(message)s"
 
+_log_dir: Path | None = None  # 最近一次 setup_logging 的目录（供「打开日志」入口）
+
+
+def current_log_dir() -> Path | None:
+    """最近一次初始化的日志目录；尚未初始化时返回 None。"""
+    return _log_dir
+
 
 def default_log_dir() -> Path:
     """真实运行时的日志目录：%LOCALAPPDATA%/ConvertibleBondProfit/logs。"""
@@ -35,6 +42,8 @@ def setup_logging(log_dir: Path | None = None) -> Path:
     directory = Path(log_dir) if log_dir is not None else default_log_dir()
     directory.mkdir(parents=True, exist_ok=True)
     log_file = directory / _LOG_FILE_NAME
+    global _log_dir
+    _log_dir = directory
 
     root = logging.getLogger()
     root.setLevel(logging.INFO)
