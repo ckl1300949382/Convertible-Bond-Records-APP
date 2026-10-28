@@ -86,6 +86,7 @@ class MainWindow(QMainWindow):
         self.resize(1080, 760)
 
         central = QWidget()
+        central.setObjectName("root")  # 供 QSS 定位背景，避免用裸 QWidget{} 选择器
         root = QHBoxLayout(central)
 
         # ---- 左侧导航（§3.1 总览 / 数据管理） --------------------------------
@@ -164,7 +165,6 @@ class MainWindow(QMainWindow):
         charts_row = QHBoxLayout()
 
         monthly_frame = QFrame()
-        monthly_frame.setFrameShape(QFrame.Shape.StyledPanel)
         monthly_box = QVBoxLayout(monthly_frame)
         monthly_header = QHBoxLayout()
         monthly_header.addWidget(QLabel("月度收益"))
@@ -178,7 +178,6 @@ class MainWindow(QMainWindow):
         charts_row.addWidget(monthly_frame, stretch=1)
 
         yearly_frame = QFrame()
-        yearly_frame.setFrameShape(QFrame.Shape.StyledPanel)
         yearly_box = QVBoxLayout(yearly_frame)
         yearly_box.addWidget(QLabel("年度收益"))
         self.yearly_chart = BarChart()
@@ -433,7 +432,6 @@ class MainWindow(QMainWindow):
     def _make_stat_card(self, row: QHBoxLayout, title: str) -> QLabel:
         """构建一张统计卡片，返回值标签（§3.2）。"""
         frame = QFrame()
-        frame.setFrameShape(QFrame.Shape.StyledPanel)
         box = QVBoxLayout(frame)
         title_label = QLabel(title)
         value_label = QLabel("0.00")

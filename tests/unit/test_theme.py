@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from PySide6.QtGui import QColor
 
-from bond_profit.ui import theme
+from bond_profit.ui import theme, tokens
 
 
 def test_detect_windows_theme_returns_valid_value():
@@ -13,13 +13,18 @@ def test_detect_windows_theme_returns_valid_value():
 
 def test_stylesheet_for_dark_is_qss():
     qss = theme.stylesheet_for("dark")
-    assert "background-color: #2b2b2b" in qss
+    assert f"background-color: {tokens.DARK.canvas}" in qss
     assert "QTableWidget" in qss
 
 
-def test_stylesheet_for_light_is_empty():
-    assert theme.stylesheet_for("light") == ""
-    assert theme.stylesheet_for("unknown") == ""  # 未知值按浅色处理
+def test_stylesheet_for_light_is_qss():
+    """浅色不再退化为 Qt 默认：与深色同一条渲染路径，只是令牌不同。"""
+    light = theme.stylesheet_for("light")
+    dark = theme.stylesheet_for("dark")
+    assert f"background-color: {tokens.LIGHT.canvas}" in light
+    assert "QTableWidget" in light
+    assert light != dark
+    assert theme.stylesheet_for("unknown") == light  # 未知值按浅色处理
 
 
 def test_chart_label_color_switches_with_theme():
@@ -30,9 +35,13 @@ def test_chart_label_color_switches_with_theme():
     assert dark.lightness() > light.lightness()  # 深色主题下标签更亮
 
 
-def test_apply_theme_sets_and_clears_stylesheet(qtbot, qapp):
+def test_apply_theme_switches_stylesheet(qtbot, qapp):
     theme.apply_theme(qapp, "dark")
-    assert "QTableWidget" in qapp.styleSheet()
+    dark = qapp.styleSheet()
+    assert "QTableWidget" in dark
 
     theme.apply_theme(qapp, "light")
-    assert qapp.styleSheet() == ""
+    light = qapp.styleSheet()
+    assert light != ""  # 浅色也有完整 QSS，不再清空
+    assert light != dark
+    assert qapp.property(theme.BASE_STYLE_MARK)  # 已切到 Fusion（QSS 才生效）

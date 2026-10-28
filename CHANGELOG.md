@@ -3,6 +3,21 @@
 格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)。
 程序版本采用 `MAJOR.MINOR.PATCH`，数据库 schema_version 独立递增（阶段 1 起）。
 
+## [未发布] - 2026-10-29 - UI 改版：提案 B「数字剧场」落地
+
+视觉方向已由用户确认（三套静态提案中选 B）。业务规则、数据库 schema、测试数量（228）均不变。
+改造分批进行，每批独立提交、独立回归。
+
+- 批次 1（令牌层与样式层）：
+  - 新增 `ui/tokens.py`：色值/字号/圆角/控件尺寸的唯一来源。`Palette` 双主题（浅色 `#ffffff` 画布、深色 `#121214`），含 `profit`/`loss` 两色（**涨红跌绿不变**）、字号阶（hero 62px / mini 19px / title 16px / base 13px / body 12px / small 11px）、圆角三级（卡 9 / 控件 7 / 芯片 5）、控件高 28、行高 30
+  - `ui/tokens.py::apply_app_font`：全局字体 `Segoe UI Variable Display` + `Microsoft YaHei UI` 回退（本机实测均存在），并开启 `tnum` 等宽数字，让收益列纵向对齐；字体不支持该特性时静默跳过
+  - `ui/theme.py` 重写：浅色不再「清空 QSS 退回 Qt 默认」，两套主题由同一份模板 + 令牌生成完整 QSS，覆盖窗口/按钮/输入框/表格/导航/滚动条/状态栏/提示/菜单/日历弹层
+  - 强制 Fusion 风格（`theme.BASE_STYLE`）：原生 Windows style 会忽略圆角与扁平按钮，QSS 只能"看起来生效一半"。设一次即在 QApplication 上打标记，不重复重建风格对象
+  - 规避已知坑：不再使用裸 `QWidget { }` 选择器（旧深色 QSS 第一行会污染所有子控件）；改用 `#root` objectName 与具体类型选择器
+  - `ui/main_window.py`：central 加 `objectName("root")`；移除 4 张统计卡与 2 个图表容器的 `StyledPanel` 边框（旧的深灰凸起框与新风格冲突）
+  - 测试更新 4 处（均为「旧视觉契约」而非行为变更）：`test_theme.py` 的「深色 QSS 含 #2b2b2b」改为读取令牌、`test_stylesheet_for_light_is_empty` 改为验证浅色也有完整 QSS 且与深色不同、`test_apply_theme_sets_and_clears_stylesheet` 改为验证切换不残留
+  - 本机实测：全量 228 项通过；用 58 条虚构记录渲染真实窗口截图核对，浅色/深色均无黑字压深底、无深灰残留块
+
 ## [未发布] - 2026-10-28 - 维护：测试隔离与文档修正
 
 不含业务逻辑变更，程序版本号与数据库 schema_version 均不变。
