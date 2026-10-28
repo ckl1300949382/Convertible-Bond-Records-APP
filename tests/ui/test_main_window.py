@@ -435,7 +435,7 @@ def test_charts_refresh_after_add_and_delete(service, qtbot, monkeypatch):
     assert window.yearly_chart.items == []  # 删除后图表同步清空
 
 
-# ---- 阶段 2 批次 8：主题 / 窗口状态记忆 / Ctrl+N（§3.6） ----------------------
+# ---- 阶段 2 批次 8：主题 / 默认窗口与排序 / Ctrl+N（§3.6） --------------------
 
 
 def test_theme_toggle_switches_and_saves(service, qtbot, qapp, tmp_path):
@@ -493,23 +493,24 @@ def test_ctrl_n_opens_add_dialog(service, qtbot, monkeypatch):
     assert opened["record"] is None  # Ctrl+N 是新增不是编辑
 
 
-def test_window_geometry_and_sort_remembered_but_filters_not(service, qtbot, tmp_path):
+def test_window_geometry_and_sort_not_remembered(service, qtbot, tmp_path):
+    """2026-10-29 起窗口尺寸与排序不持久化：重开后回到默认，筛选同样不记忆。"""
     ini = str(tmp_path / "prefs.ini")
     window = MainWindow(service, ExcelService(service), settings_path=ini)
     qtbot.addWidget(window)
     service.create_record(make_record())
     window.refresh_records()
 
-    window.search_input.setText("不会保存的筛选")  # 筛选不记忆
-    window._on_header_clicked(3)  # 排序：价格降序
+    window.search_input.setText("不会保存的筛选")
+    window._on_header_clicked(3)  # 临时改为价格降序
     window.resize(1150, 700)
     window.close()
 
     restored = MainWindow(service, ExcelService(service), settings_path=ini)
     qtbot.addWidget(restored)
-    assert restored._sort_key == "price"  # 排序记忆
+    assert restored._sort_key == "date"  # 排序不记忆，回到默认
     assert restored._sort_desc is True
-    assert restored.width() == 1150  # 窗口大小记忆
+    assert restored.width() == 1080  # 窗口尺寸不记忆，回到默认
     assert restored.search_input.text() == ""  # 明确不记住筛选
 
 

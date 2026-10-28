@@ -78,16 +78,12 @@ class MainWindow(QMainWindow):
         self._page = 1
         self._total = 0
 
-        # 恢复窗口大小/位置与表格排序（§3.6 记住窗口状态，不记住筛选）
-        geometry, sort_key, sort_desc = prefs.load_window_state(self._settings)
-        self._sort_key = sort_key
-        self._sort_desc = sort_desc
+        # 窗口尺寸与表格排序不持久化（2026-10-29：改 UI 时避免旧偏好与新布局冲突）
+        self._sort_key = "date"
+        self._sort_desc = True
 
         self.setWindowTitle(f"可转债收益记录 v{bond_profit.__version__}")
-        if geometry is not None:
-            self.restoreGeometry(geometry)
-        else:
-            self.resize(1080, 760)
+        self.resize(1080, 760)
 
         central = QWidget()
         root = QHBoxLayout(central)
@@ -389,14 +385,6 @@ class MainWindow(QMainWindow):
     def _on_toggle_theme(self) -> None:
         current = "dark" if self.theme_button.text() == "深色" else "light"
         self._apply_theme_mode("light" if current == "dark" else "dark")
-
-    # ---- 窗口状态（§3.6） ------------------------------------------------------
-
-    def closeEvent(self, event) -> None:  # noqa: N802 (Qt 命名)
-        prefs.save_window_state(
-            self._settings, self.saveGeometry(), self._sort_key, self._sort_desc
-        )
-        super().closeEvent(event)
 
     # ---- 数据显示 ----------------------------------------------------------
 

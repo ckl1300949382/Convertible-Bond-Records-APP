@@ -7,6 +7,13 @@
 
 不含业务逻辑变更，程序版本号与数据库 schema_version 均不变。
 
+- 界面行为变更（为后续 UI 改版让路）：
+  - `ui/prefs.py` 只保留主题记忆；删除 `load_window_state` / `save_window_state` 与 `ui/window_geometry`、`ui/sort_key`、`ui/sort_desc` 三个键
+  - `ui/main_window.py`：启动固定 1080×760、表格默认「日期降序」；移除 `closeEvent` 中的偏好写回（该方法无其他职责，一并删除）
+  - 原因：改 UI 后按旧几何还原会挤压新布局甚至让窗口落到屏幕外；旧排序键也可能与新表格列对不上
+  - 搜索/筛选条件本来就明确不记忆（§3.6），行为未变
+  - 测试：`test_prefs.py` 删 2 项窗口状态用例；`test_window_geometry_and_sort_not_remembered` 改为验证「重开后回到默认」；全量 228 项通过
+
 - 测试隔离（修正 230 项不再稳定通过）：
   - 新增 `tests/conftest.py`：autouse 夹具把「未显式传 `settings_path`」的偏好存储重定向到临时 ini。此前 `tests/ui/` 与 `tests/acceptance/` 共 40 处 `MainWindow(...)` 未传该参数，读写本机真实 QSettings（注册表 `HKCU\Software\BondProfit\BondProfit`）：用例关闭窗口时 `closeEvent` 把当时的排序写回注册表，下一条用例继承上一条的状态，导致同一份代码两遍结果不同（实测 227 通过/3 失败 与 228 通过/2 失败），并污染用户真实偏好（`ui/sort_key=price`）
   - `tests/unit/test_backup.py::test_list_sorted_newest_first`：原来把 manifest 的 `created_at` 写死为 `2026-10-17T23:59:59` 当作「更晚」，该日期成为过去后排序断言必然反转（定时炸弹）。改为基于第一份备份的真实 `created_at` 加 1 秒，与当前日期解耦
