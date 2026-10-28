@@ -15,6 +15,7 @@
   - `requirements.txt` 补 `openpyxl==3.1.5`（此前只在 pyproject 声明，照 README 装依赖会缺 Excel 库）
   - `README.md`：状态表由「阶段 0 进行中」更新为阶段 0–5 全部完成、版本 1.0.0；打包命令改为 `scripts/build_release.ps1`
   - 删除阶段 0 遗留的 `scripts/build_windows.py`（产物 `dist/BondProfit/` 作废；`build_release.ps1` 直接调用 PyInstaller，不依赖它，源码/测试零引用）
+  - 新增 `docs/已知问题.md`：留档三项未修技术隐患（错误提示关键字归位、金额转换异常未兜底、界面引用数据层类型）与两项需求文档偏差（备注列默认展示、统计入口合并），评估结论为不影响使用、不改代码
 
 ## [1.0.0] - 2026-10-17 - 阶段 5：Windows 发布与综合验收
 
