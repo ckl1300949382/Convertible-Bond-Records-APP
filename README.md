@@ -8,14 +8,18 @@
 
 ## 当前状态
 
+程序版本 **1.0.0**，数据库 `schema_version = 1`。阶段 0—5 全部完成，已产出 Windows 绿色版发布包。
+
 | 阶段 | 内容 | 状态 |
 |---|---|---|
-| 阶段 0 | 工程骨架、最小窗口、日志、测试、打包 | 进行中 |
-| 阶段 1 | 记录核心与持久化 | 未开始 |
-| 阶段 2 | 首页与统计交互 | 未开始 |
-| 阶段 3 | Excel 导入导出 | 未开始 |
-| 阶段 4 | 备份恢复与迁移 | 未开始 |
-| 阶段 5 | Windows 发布与综合验收 | 未开始 |
+| 阶段 0 | 工程骨架、最小窗口、日志、测试、打包 | 已完成 |
+| 阶段 1 | 记录核心与持久化 | 已完成 |
+| 阶段 2 | 首页与统计交互 | 已完成 |
+| 阶段 3 | Excel 导入导出 | 已完成 |
+| 阶段 4 | 备份恢复与版本迁移 | 已完成 |
+| 阶段 5 | Windows 发布与综合验收 | 已完成 |
+
+> 进度与逐批次变更以 [CHANGELOG.md](CHANGELOG.md) 为准；模块职责与关键设计决策见 [ARCHITECTURE.md](ARCHITECTURE.md)；验收记录见 [docs/ACCEPTANCE_CHECKLIST.md](docs/ACCEPTANCE_CHECKLIST.md)。
 
 ## 开发环境搭建
 
@@ -28,15 +32,17 @@ py -3.12 -m venv .venv
 ## 常用命令
 
 ```powershell
-# 开发运行（最小窗口）
+# 开发运行
 .venv\Scripts\python -m bond_profit
 
 # 运行测试
 .venv\Scripts\python -m pytest -v
 
-# 打包绿色版（产物 dist/BondProfit/BondProfit.exe）
-.venv\Scripts\python scripts\build_windows.py
+# 打包正式绿色版（产物 dist\可转债收益记录\ 与 dist\可转债收益记录_v{版本}_win64.zip）
+powershell -ExecutionPolicy Bypass -File scripts\build_release.ps1
 ```
+
+> 打包只保留 `scripts/build_release.ps1` 一套。阶段 0 的早期脚本 `build_windows.py` 已删除（其产物 `dist/BondProfit/` 作废）。
 
 ## 数据与日志位置
 

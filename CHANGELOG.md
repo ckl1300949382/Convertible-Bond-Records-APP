@@ -3,6 +3,19 @@
 格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)。
 程序版本采用 `MAJOR.MINOR.PATCH`，数据库 schema_version 独立递增（阶段 1 起）。
 
+## [未发布] - 2026-10-28 - 维护：测试隔离与文档修正
+
+不含业务逻辑变更，程序版本号与数据库 schema_version 均不变。
+
+- 测试隔离（修正 230 项不再稳定通过）：
+  - 新增 `tests/conftest.py`：autouse 夹具把「未显式传 `settings_path`」的偏好存储重定向到临时 ini。此前 `tests/ui/` 与 `tests/acceptance/` 共 40 处 `MainWindow(...)` 未传该参数，读写本机真实 QSettings（注册表 `HKCU\Software\BondProfit\BondProfit`）：用例关闭窗口时 `closeEvent` 把当时的排序写回注册表，下一条用例继承上一条的状态，导致同一份代码两遍结果不同（实测 227 通过/3 失败 与 228 通过/2 失败），并污染用户真实偏好（`ui/sort_key=price`）
+  - `tests/unit/test_backup.py::test_list_sorted_newest_first`：原来把 manifest 的 `created_at` 写死为 `2026-10-17T23:59:59` 当作「更晚」，该日期成为过去后排序断言必然反转（定时炸弹）。改为基于第一份备份的真实 `created_at` 加 1 秒，与当前日期解耦
+  - 本机实测：全量 230 项连跑两遍均 230 passed；跑完 76 项 UI 测试后真实偏好未被写入
+- 依赖与文档：
+  - `requirements.txt` 补 `openpyxl==3.1.5`（此前只在 pyproject 声明，照 README 装依赖会缺 Excel 库）
+  - `README.md`：状态表由「阶段 0 进行中」更新为阶段 0–5 全部完成、版本 1.0.0；打包命令改为 `scripts/build_release.ps1`
+  - 删除阶段 0 遗留的 `scripts/build_windows.py`（产物 `dist/BondProfit/` 作废；`build_release.ps1` 直接调用 PyInstaller，不依赖它，源码/测试零引用）
+
 ## [1.0.0] - 2026-10-17 - 阶段 5：Windows 发布与综合验收
 
 - 批次 19（收官定版）：

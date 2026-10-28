@@ -7,6 +7,7 @@ import os
 import re
 import sqlite3
 import time
+from datetime import datetime, timedelta
 
 import pytest
 
@@ -123,9 +124,11 @@ def test_list_sorted_newest_first(conn, tmp_path):
     dest = tmp_path / "backups" / "auto"
     first = create_backup(conn, dest, "auto")
     second = create_backup(conn, dest, "auto")
-    # 同秒创建时 created_at 相同、次序不稳定；把第二份 manifest 时间调后 1 秒
+    # 同秒创建时 created_at 相同、次序不稳定；把第二份 manifest 时间对准第一份 +1 秒。
+    # 注意：不要写死绝对时间，否则等到那天变成「过去」，排序断言就会反掉。
+    later = datetime.fromisoformat(first.created_at) + timedelta(seconds=1)
     manifest = json.loads(manifest_path(second.path).read_text(encoding="utf-8"))
-    manifest["created_at"] = "2026-10-17T23:59:59"
+    manifest["created_at"] = later.isoformat(timespec="seconds")
     manifest_path(second.path).write_text(
         json.dumps(manifest, ensure_ascii=False), encoding="utf-8"
     )
