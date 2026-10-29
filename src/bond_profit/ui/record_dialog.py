@@ -20,7 +20,6 @@ from PySide6.QtWidgets import (
     QLabel,
     QLineEdit,
     QMessageBox,
-    QPushButton,
     QSpinBox,
     QVBoxLayout,
     QWidget,
@@ -28,8 +27,11 @@ from PySide6.QtWidgets import (
 
 from bond_profit.application.sales_service import SalesService
 from bond_profit.domain.models import SaleRecord
+from bond_profit.ui import tokens
+from bond_profit.ui.widgets import GhostButton, PrimaryButton
 
-_ERROR_STYLE = "color: #c62828;"
+# 错误提示槽的固定高度：出现/清除错误时布局不再上下跳（旧版是「长出一行」）
+_ERROR_SLOT_HEIGHT = 18
 
 # 错误信息关键字 → 字段（领域层错误信息措辞可控，映射稳定）
 _FIELD_KEYWORDS = (
@@ -55,7 +57,8 @@ class RecordDialog(QDialog):
         self._dirty = False
 
         self.setWindowTitle("编辑记录" if record else "新增记录")
-        self.setMinimumWidth(420)
+        # 520：两列每列约 250px，11px 的错误提示能在一行内放完
+        self.setMinimumWidth(520)
         self._build_ui()
         self._load_record()
         self._track_dirty()
@@ -64,8 +67,12 @@ class RecordDialog(QDialog):
 
     def _build_ui(self) -> None:
         layout = QVBoxLayout(self)
+        layout.setContentsMargins(20, 18, 20, 16)
+        layout.setSpacing(0)
         grid = QGridLayout()
+        grid.setContentsMargins(0, 0, 0, 0)
         grid.setHorizontalSpacing(16)
+        grid.setVerticalSpacing(10)
 
         self.name_edit = QLineEdit()
         self.code_edit = QLineEdit()
@@ -79,6 +86,16 @@ class RecordDialog(QDialog):
         self.quantity_spin.setValue(10)  # §2.1 默认 10 张
         self.note_edit = QLineEdit()
         self.note_edit.setMaxLength(500)
+        # 统一控件高度（QSS 只给 min-height，SpinBox/DateEdit 各自算高度会不齐）
+        for editor in (
+            self.name_edit,
+            self.code_edit,
+            self.date_edit,
+            self.price_edit,
+            self.quantity_spin,
+            self.note_edit,
+        ):
+            editor.setFixedHeight(tokens.CONTROL_HEIGHT)
 
         self.name_error = QLabel()
         self.code_error = QLabel()
@@ -87,7 +104,7 @@ class RecordDialog(QDialog):
         self.quantity_error = QLabel()
         self.note_error = QLabel()
         self.general_error = QLabel()
-        self.general_error.setStyleSheet(_ERROR_STYLE)
+        self.general_error.setObjectName("fieldError")
         self.general_error.setWordWrap(True)
         self.general_error.hide()
 
@@ -100,7 +117,7 @@ class RecordDialog(QDialog):
             "note": self.note_error,
         }
         for label in self._error_labels.values():
-            label.setStyleSheet(_ERROR_STYLE)
+            label.setObjectName("fieldError")  # 颜色走令牌（旧版硬编码 #c62828）
             label.setWordWrap(True)
             label.hide()
 
@@ -112,12 +129,17 @@ class RecordDialog(QDialog):
         grid.addWidget(self._field_group("备注(可选)", self.note_edit, self.note_error), 2, 1)
         layout.addLayout(grid)
 
+        # 通用错误（保存失败等业务提示）可能很长，允许换行撑开；
+        # 只有字段级提示才用固定高度的槽位
+        layout.addSpacing(6)
         layout.addWidget(self.general_error)
 
         buttons = QHBoxLayout()
+        buttons.setContentsMargins(0, 8, 0, 0)
+        buttons.setSpacing(8)
         buttons.addStretch()
-        self.cancel_button = QPushButton("取消")
-        self.save_button = QPushButton("保存")
+        self.cancel_button = GhostButton("取消")
+        self.save_button = PrimaryButton("保存")
         self.save_button.setDefault(True)
         buttons.addWidget(self.cancel_button)
         buttons.addWidget(self.save_button)
@@ -130,13 +152,23 @@ class RecordDialog(QDialog):
 
     @staticmethod
     def _field_group(title: str, editor: QWidget, error_label: QLabel) -> QWidget:
+        """标签在上 + 控件 + 固定高度的错误槽（错误出现时布局不跳）。"""
         box = QWidget()
         layout = QVBoxLayout(box)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(2)
-        layout.addWidget(QLabel(title))
+        layout.setSpacing(4)
+        caption = QLabel(title)
+        caption.setObjectName("fieldLabel")
+        layout.addWidget(caption)
         layout.addWidget(editor)
-        layout.addWidget(error_label)
+
+        slot = QWidget()
+        slot.setFixedHeight(_ERROR_SLOT_HEIGHT)
+        slot_layout = QVBoxLayout(slot)
+        slot_layout.setContentsMargins(0, 0, 0, 0)
+        slot_layout.setSpacing(0)
+        slot_layout.addWidget(error_label)
+        layout.addWidget(slot)
         return box
 
     def _load_record(self) -> None:
@@ -230,6 +262,7 @@ class RecordDialog(QDialog):
     def _show_field_error(self, key: str, message: str) -> None:
         label = self._error_labels[key]
         label.setText(message)
+        label.setToolTip(message)  # 槽位只有一行高，放不下时悬停看全文
         label.show()
 
     def _clear_errors(self) -> None:

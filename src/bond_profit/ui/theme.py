@@ -315,6 +315,9 @@ QLabel#miniValue[pos="1"] {
 QLabel#miniValue[neg="1"] {
     color: $loss;
 }
+QLabel#miniValue[danger="1"] {
+    color: $danger;
+}
 QLabel#chartTitle {
     color: $text_2;
     font-size: ${f_body}px;
@@ -350,6 +353,76 @@ QLabel#emptySub {
 QLabel#emptyIcon {
     background-color: $fill;
     border-radius: 13px;
+}
+
+/* ---- 分组区块（数据管理 / 备份页）：发丝分隔线 + 小标题 + 弱化说明 ---- */
+QFrame#divider {
+    background-color: $line;
+    border: none;
+}
+QFrame#section {
+    background: transparent;
+    border: none;
+}
+QLabel#sectionTitle {
+    color: $text;
+    font-size: 12.5px;
+    font-weight: 600;
+}
+QLabel#sectionHint {
+    color: $text_3;
+    font-size: 11.5px;
+}
+QLabel#statusLine {
+    color: $text_2;
+    font-size: ${f_small}px;
+}
+
+/* ---- 危险操作：只给描边与警示色，不与主操作抢视觉权重 ---- */
+QPushButton#dangerButton {
+    background: transparent;
+    border: 1px solid $danger;
+    border-radius: ${radius_control}px;
+    color: $danger;
+    font-size: ${f_body}px;
+    min-height: ${control_h}px;
+    padding: 0 10px;
+}
+QPushButton#dangerButton:hover {
+    background-color: $fill;
+}
+QPushButton#dangerButton:pressed {
+    background-color: $fill_hover;
+}
+QPushButton#dangerButton:disabled {
+    background: transparent;
+    border-color: $line_strong;
+    color: $text_3;
+}
+
+/* ---- 状态芯片：中性为底，仅危险态用警示红描边 ---- */
+QLabel#chip {
+    background-color: $fill;
+    border: 1px solid transparent;
+    border-radius: ${radius_chip}px;
+    color: $text_2;
+    font-size: ${f_small}px;
+    padding: 2px 8px;
+}
+QLabel#chip[danger="1"] {
+    background: transparent;
+    border-color: $danger;
+    color: $danger;
+}
+
+/* ---- 表单：标签弱化、错误提示用警示红且不撑高布局 ---- */
+QLabel#fieldLabel {
+    color: $text_2;
+    font-size: ${f_small}px;
+}
+QLabel#fieldError {
+    color: $danger;
+    font-size: ${f_small}px;
 }
 
 /* ---- 滚动条：默认隐形，悬停显形 ---- */

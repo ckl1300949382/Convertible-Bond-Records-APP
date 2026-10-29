@@ -16,7 +16,8 @@
 
 from __future__ import annotations
 
-from PySide6.QtCore import Signal, Qt
+from PySide6.QtCore import QRect, Signal, Qt
+from PySide6.QtGui import QColor
 from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
@@ -25,6 +26,7 @@ from PySide6.QtWidgets import (
     QListWidgetItem,
     QPushButton,
     QSizePolicy,
+    QStyledItemDelegate,
     QVBoxLayout,
     QWidget,
 )
@@ -45,6 +47,92 @@ def current_mode() -> str:
     app = QApplication.instance()
     mode = app.property(theme.THEME_MODE_PROPERTY) if app is not None else None
     return str(mode) if mode else "light"
+
+
+def set_flag(widget: QWidget, name: str, on: bool) -> None:
+    """切换 QSS 用的动态属性（``[name="1"]``），并强制样式重新匹配。"""
+    widget.setProperty(name, "1" if on else "")
+    widget.style().unpolish(widget)
+    widget.style().polish(widget)
+
+
+def apply_sign_property(widget: QWidget, value: float) -> None:
+    """按数值正负打 ``pos`` / ``neg`` 动态属性，QSS 据此上色（涨红跌绿）。
+
+    零为中性色。属性变化后必须 unpolish + polish，否则 QSS 不会重新匹配。
+    """
+    new = ("1" if value > 0 else "", "1" if value < 0 else "")
+    if (widget.property("pos"), widget.property("neg")) == new:
+        return
+    widget.setProperty("pos", new[0])
+    widget.setProperty("neg", new[1])
+    widget.style().unpolish(widget)
+    widget.style().polish(widget)
+
+
+class Divider(QFrame):
+    """1px 发丝分隔线：分组之间的唯一分隔手段（不用凸起边框）。"""
+
+    def __init__(self, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setObjectName("divider")
+        self.setFixedHeight(1)
+
+
+class Section(QFrame):
+    """分组区块：小标题 + 弱化说明 + 横向内容区。
+
+    数据管理的「导入 / 导出」、备份页的操作区都用它，保证各页
+    标题与说明的层级一致；内容区是横向布局，调用方自行加 stretch。
+    """
+
+    def __init__(self, title: str, hint: str = "", parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setObjectName("section")
+        box = QVBoxLayout(self)
+        box.setContentsMargins(0, 0, 0, 0)
+        box.setSpacing(6)
+        box.addWidget(_named(QLabel(title), "sectionTitle"))
+        if hint:
+            hint_label = _named(QLabel(hint), "sectionHint")
+            hint_label.setWordWrap(True)
+            box.addWidget(hint_label)
+        self.body = QHBoxLayout()
+        self.body.setSpacing(8)
+        box.addLayout(self.body)
+
+
+class MiniStat(QWidget):
+    """mini 指标：小标签 + 19px 数字——统计条的基本单元（比总览 hero 低一级）。"""
+
+    def __init__(self, title: str, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        box = QVBoxLayout(self)
+        box.setContentsMargins(0, 0, 0, 0)
+        box.setSpacing(2)
+        box.addWidget(_named(QLabel(title), "miniLabel"))
+        self.value = _named(QLabel("0"), "miniValue")
+        box.addWidget(self.value)
+
+    def set_value(self, text: str, sign: float | None = None) -> None:
+        """填数字；给了 sign 就按正负上色（不给则中性）。"""
+        self.value.setText(text)
+        apply_sign_property(self.value, 0.0 if sign is None else sign)
+
+
+class RowHairlineDelegate(QStyledItemDelegate):
+    """表格行间 1px 发丝线。
+
+    QSS 的 ``::item { border-bottom }`` 在 QTableWidget 上渲染不可靠
+    （部分 style 会丢），所以用 delegate 在每个单元格底部补一条线；
+    颜色在绘制时实时取当前主题，主题切换无需手动刷新。
+    """
+
+    def paint(self, painter, option, index) -> None:  # noqa: N802 (Qt 命名)
+        super().paint(painter, option, index)
+        line = QColor(tokens.palette_for(current_mode()).line)
+        rect = option.rect
+        painter.fillRect(QRect(rect.left(), rect.bottom(), rect.width(), 1), line)
 
 
 class BrandMark(QWidget):

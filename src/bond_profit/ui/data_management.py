@@ -14,7 +14,6 @@ from PySide6.QtWidgets import (
     QFileDialog,
     QLabel,
     QMessageBox,
-    QPushButton,
     QVBoxLayout,
     QWidget,
 )
@@ -22,6 +21,7 @@ from PySide6.QtWidgets import (
 from bond_profit.application.excel_service import ExcelError, ExcelService
 from bond_profit.domain.models import RecordQuery
 from bond_profit.ui.import_preview_dialog import ImportPreviewDialog
+from bond_profit.ui.widgets import Divider, GhostButton, PrimaryButton, Section
 
 
 class DataManagementPage(QWidget):
@@ -35,50 +35,59 @@ class DataManagementPage(QWidget):
         self._excel = excel_service
 
         layout = QVBoxLayout(self)
-        layout.setContentsMargins(24, 24, 24, 24)
-        layout.setSpacing(12)
+        layout.setContentsMargins(24, 16, 24, 14)
+        layout.setSpacing(0)
 
+        # ---- 页标题（与总览页同一层级） ------------------------------------
         title = QLabel("数据管理")
-        title.setStyleSheet("font-size: 18px; font-weight: bold;")
+        title.setObjectName("pageTitle")
         layout.addWidget(title)
+        layout.addSpacing(12)
+        layout.addWidget(Divider())
+        layout.addSpacing(16)
 
-        hint = QLabel(
-            "通过 Excel 批量录入卖出记录：先下载模板并按「填写说明」页填写，"
-            "再选择文件导入。导入前会逐行校验并预览，确认后一次性写入；"
-            "与已有记录完全相同的行会自动跳过。"
+        # ---- 导入组：主操作 PrimaryButton，模板下载降为次要 ------------------
+        import_section = Section(
+            "导入",
+            "先下载模板并按「填写说明」页填写，再选择文件导入。导入前会逐行校验并"
+            "预览，确认后一次性写入；与已有记录完全相同的行会自动跳过。",
         )
-        hint.setWordWrap(True)
-        layout.addWidget(hint)
+        self.import_button = PrimaryButton("从 Excel 导入…", icon_name="data")
+        self.template_button = GhostButton("下载 Excel 模板")
+        import_section.body.addWidget(self.import_button)
+        import_section.body.addWidget(self.template_button)
+        import_section.body.addStretch()
+        layout.addWidget(import_section)
 
-        self.template_button = QPushButton("下载 Excel 模板")
-        self.template_button.clicked.connect(self._on_download_template)
-        layout.addWidget(self.template_button)
+        layout.addSpacing(18)
+        layout.addWidget(Divider())
+        layout.addSpacing(16)
 
-        self.import_button = QPushButton("从 Excel 导入…")
-        self.import_button.clicked.connect(self._on_import)
-        layout.addWidget(self.import_button)
-
-        export_hint = QLabel("导出内容为六个业务字段加软件计算的收益列。")
-        export_hint.setWordWrap(True)
-        layout.addWidget(export_hint)
-
-        self.export_all_button = QPushButton("导出全部记录…")
-        self.export_all_button.clicked.connect(
-            lambda: self.run_export(RecordQuery())
+        # ---- 导出组 ---------------------------------------------------------
+        export_section = Section(
+            "导出", "导出内容为六个业务字段加软件计算的收益列。"
         )
-        layout.addWidget(self.export_all_button)
-
-        self.export_filtered_button = QPushButton("导出当前筛选结果…")
+        self.export_all_button = PrimaryButton("导出全部记录…")
+        self.export_filtered_button = GhostButton("导出当前筛选结果…")
         self.export_filtered_button.setToolTip(
             "按总览页当前的搜索/年月筛选条件导出全部匹配记录（不受每页 20 条限制）"
+        )
+        export_section.body.addWidget(self.export_all_button)
+        export_section.body.addWidget(self.export_filtered_button)
+        export_section.body.addStretch()
+        layout.addWidget(export_section)
+
+        layout.addStretch()
+
+        self.template_button.clicked.connect(self._on_download_template)
+        self.import_button.clicked.connect(self._on_import)
+        self.export_all_button.clicked.connect(
+            lambda: self.run_export(RecordQuery())
         )
         # 筛选条件由主窗口在槽内提供，页面不回查主窗口状态
         self.export_filtered_button.clicked.connect(
             self.export_filtered_requested.emit
         )
-        layout.addWidget(self.export_filtered_button)
-
-        layout.addStretch()
 
     # ---- 动作 -----------------------------------------------------------------
 

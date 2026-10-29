@@ -29,7 +29,12 @@ FONT_STACK = (
 
 @dataclass(frozen=True)
 class Palette:
-    """一套主题的全部色值，字段与提案 B 的 CSS 变量一一对应。"""
+    """一套主题的全部色值，字段与提案 B 的 CSS 变量一一对应。
+
+    ``danger`` 与 ``profit`` 同值（国内红色同时是「涨」与「警示」），
+    单独取名只为让 QSS 读得懂语义；**绿色绝不用于成功/提示**，
+    否则会与「跌」混淆——这是涨红跌绿最容易翻车的地方。
+    """
 
     mode: str
     canvas: str  # 主背景
@@ -45,6 +50,7 @@ class Palette:
     accent_fg: str  # 主按钮文字色
     profit: str  # 盈利（红）
     loss: str  # 亏损（绿）
+    danger: str  # 警示红（危险操作描边、错误提示）
     focus: str  # 焦点环、选中指示条
     selection: str  # 表格行选中/悬停（rgba）
     scroll: str  # 滚动条滑块（rgba）
@@ -65,6 +71,7 @@ LIGHT = Palette(
     accent_fg="#ffffff",
     profit="#c62828",
     loss="#2e7d32",
+    danger="#c62828",
     focus="#0071e3",
     selection="rgba(0, 0, 0, 0.04)",
     scroll="rgba(0, 0, 0, 0.18)",
@@ -85,6 +92,7 @@ DARK = Palette(
     accent_fg="#121214",
     profit="#ff6b60",  # 深色下提高亮度，保持红绿语义不变
     loss="#4ade80",
+    danger="#ff6b60",
     focus="#0a84ff",
     selection="rgba(255, 255, 255, 0.055)",
     scroll="rgba(255, 255, 255, 0.20)",

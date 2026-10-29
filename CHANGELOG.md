@@ -55,6 +55,15 @@
   - 修正数值标签压柱：正值标签上移到柱顶上方 14px
   - 本机实测：全量 228 项通过；浅色月度/深色年度截图核对，圆角渐变、稀疏标签、分段选中态均正常
 
+- 批次 6（其余界面铺开）：数据管理、备份与恢复、新增/编辑弹窗、导入预览四处向总览页风格对齐
+  - 组件层扩充 `ui/widgets.py`：`Section`（分组卡：标题 + 说明 + 内容行）、`Divider` 发丝线分隔、`MiniStat`（mini 指标：11px 标签 + 19px 等宽数值）、`RowHairlineDelegate` 从总览页上收为公共组件、`set_flag` 动态属性刷新工具（unpolish+polish 封装）；`tokens.py` 补 `danger`（浅 #c62828 / 深 #ff6b60，与涨红同源）与 `fill`/`fill_hover` 弱底色
+  - `data_management.py` 重排：5 个同权重全宽竖排按钮 → 「导入」「导出」两个 Section 分组，组间 Divider；主操作（从 Excel 导入 / 导出全部记录）用 PrimaryButton，模板下载与按筛选导出降为 GhostButton；说明文字降为 text_3。**控件名契约不变**（template/import/export_all/export_filtered_button 原样保留）
+  - `backup_page.py` 重排：顶部加备份健康度行（StatusDot + 一句话状态，`populate_backups` 时随清单刷新）；「恢复所选备份…」从与普通按钮同级降权为 GhostButton + danger 色描边；表格换固定列宽 + RowHairlineDelegate 发丝线，与总览页一致。**6 列顺序、item(row,5) 契约不变**
+  - `record_dialog.py` 重排：标签移到控件上方、表单控件统一走全局 QSS（删除内联 _ERROR_STYLE 硬编码色，错误色改从令牌取）；每个字段的错误提示放入 `_ERROR_SLOT_HEIGHT=18` 的固定高度错误槽，出现/消失不再撑高布局
+  - `import_preview_dialog.py` 重排：一句长文本 → 统计条（预计新增/重复跳过/错误/净收益变化 4 个 MiniStat，错误数 >0 时数值标 danger）+ 状态芯片（`status_chip`，有错误时 danger 描边）；`summary_label` 仍保留完整句子（测试文本契约不变），仅不再参与排版；底部错误提示升级为 danger 边框提示条
+  - `theme.py` 补 `#sectionCard`、`#miniValue[pos/neg/danger]`、`#statusChip`、`#errorSlot`、`#dangerButton` 等 QSS 规则（均 objectName 限定，无裸 QWidget 选择器）
+  - 本机实测：全量 228 项通过；浅色四页截图 + 数值探针核对（页面画布 #ffffff、恢复按钮描边 #c62828 且填充透明、主按钮实心、错误文案为 danger 色），无黑字压浅底、无布局撑高
+
 ## [未发布] - 2026-10-28 - 维护：测试隔离与文档修正
 
 不含业务逻辑变更，程序版本号与数据库 schema_version 均不变。

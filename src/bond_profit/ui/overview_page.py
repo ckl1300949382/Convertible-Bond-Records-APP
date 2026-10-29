@@ -15,8 +15,7 @@
 
 from __future__ import annotations
 
-from PySide6.QtCore import QRect, Qt
-from PySide6.QtGui import QColor
+from PySide6.QtCore import Qt
 from PySide6.QtWidgets import (
     QComboBox,
     QHBoxLayout,
@@ -26,7 +25,6 @@ from PySide6.QtWidgets import (
     QPushButton,
     QSizePolicy,
     QStackedWidget,
-    QStyledItemDelegate,
     QTableWidget,
     QTableWidgetItem,
     QVBoxLayout,
@@ -35,7 +33,14 @@ from PySide6.QtWidgets import (
 
 from bond_profit.ui import icons, tokens
 from bond_profit.ui.bar_chart import BarChart
-from bond_profit.ui.widgets import IconButton, PrimaryButton, Segmented, current_mode
+from bond_profit.ui.widgets import (
+    IconButton,
+    PrimaryButton,
+    RowHairlineDelegate,
+    Segmented,
+    apply_sign_property,
+    current_mode,
+)
 
 _COLUMNS = (
     "卖出日期",
@@ -59,28 +64,7 @@ def _named(widget: QWidget, name: str) -> QWidget:
 
 def _set_sign_class(label: QLabel, value: float) -> None:
     """按正负号设置动态属性（pos/neg），QSS 据此红涨绿跌；零为中性灰。"""
-    old = (label.property("pos"), label.property("neg"))
-    new = ("true" if value > 0 else "", "true" if value < 0 else "")
-    if old != new:
-        label.setProperty("pos", new[0])
-        label.setProperty("neg", new[1])
-        label.style().unpolish(label)
-        label.style().polish(label)
-
-
-class _RowHairlineDelegate(QStyledItemDelegate):
-    """行间 1px 发丝线。
-
-    QSS 的 ``::item { border-bottom }`` 在 QTableWidget 上渲染不可靠
-    （部分 style 会丢），所以用 delegate 在每个单元格底部补一条线；
-    颜色在绘制时实时取当前主题，主题切换无需手动刷新。
-    """
-
-    def paint(self, painter, option, index) -> None:  # noqa: N802 (Qt 命名)
-        super().paint(painter, option, index)
-        line = QColor(tokens.palette_for(current_mode()).line)
-        rect = option.rect
-        painter.fillRect(QRect(rect.left(), rect.bottom(), rect.width(), 1), line)
+    apply_sign_property(label, value)
 
 
 class OverviewPage(QWidget):
@@ -203,7 +187,7 @@ class OverviewPage(QWidget):
         self.table.setShowGrid(False)  # 网格线换成行间发丝线（delegate 绘制）
         self.table.setMouseTracking(True)  # 不按下也跟踪悬停，行 hover 高亮才生效
         self.table.setVerticalScrollMode(QTableWidget.ScrollMode.ScrollPerPixel)
-        self.table.setItemDelegate(_RowHairlineDelegate(self.table))
+        self.table.setItemDelegate(RowHairlineDelegate(self.table))
         self.table.verticalHeader().setVisible(False)
         self.table.verticalHeader().setDefaultSectionSize(tokens.ROW_HEIGHT)
 
