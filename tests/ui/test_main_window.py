@@ -17,7 +17,7 @@ from bond_profit.application.sales_service import SalesService
 from bond_profit.domain.models import SaleRecord
 from bond_profit.infrastructure.database import connect
 from bond_profit.infrastructure.repository import SalesRepository
-from bond_profit.ui import prefs
+from bond_profit.ui import prefs, theme
 from bond_profit.ui.main_window import MainWindow
 
 
@@ -448,7 +448,9 @@ def test_theme_toggle_switches_and_saves(service, qtbot, qapp, tmp_path):
         window.theme_button.click()
         after = window.theme_button.text()
         assert {before, after} == {"浅色", "深色"}
-        assert (qapp.styleSheet() != "") == (after == "深色")  # 深色应用 QSS
+        # 两套主题都有 QSS，用「实际样式表 == 该主题应有样式表」判断，而非「是否为空」
+        expected_mode = "dark" if after == "深色" else "light"
+        assert qapp.styleSheet() == theme.stylesheet_for(expected_mode)
 
         saved = prefs.open_settings(ini)
         assert saved.value("ui/theme") == ("dark" if after == "深色" else "light")
