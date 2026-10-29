@@ -8,9 +8,11 @@ from __future__ import annotations
 import logging
 import sqlite3
 import sys
+from pathlib import Path
 
 import bond_profit
 from PySide6.QtCore import Qt
+from PySide6.QtGui import QIcon
 from PySide6.QtNetwork import QLocalServer, QLocalSocket
 from PySide6.QtWidgets import QApplication, QMessageBox
 
@@ -46,6 +48,7 @@ def main() -> int:
     app = QApplication(sys.argv)
     app.setApplicationName("可转债收益记录")
     app.setOrganizationName("BondProfit")
+    _apply_window_icon(app)
 
     if _is_another_instance_running():
         logger.info("检测到已有实例运行，通知其激活窗口后退出")
@@ -128,6 +131,35 @@ def main() -> int:
 
     window.show()
     return app.exec()
+
+
+# ---- 应用图标 ---------------------------------------------------------------
+
+
+def _resource_root() -> Path:
+    """资源根目录：打包后取 PyInstaller 解包目录，源码运行取仓库根。"""
+    bundled = getattr(sys, "_MEIPASS", None)
+    if bundled:
+        return Path(bundled)
+    return Path(__file__).resolve().parents[2]
+
+
+def _apply_window_icon(app: QApplication) -> None:
+    """设置窗口/任务栏图标。
+
+    exe 文件图标由打包参数 ``--icon`` 写入，但窗口与任务栏取的是
+    ``QApplication.windowIcon()``，不显式设置就会回落成 Qt 默认图标。
+    图标缺失（例如精简部署丢了 assets）不阻断启动，只记一条警告。
+    """
+    icon_path = _resource_root() / "assets" / "app-icon.ico"
+    if not icon_path.is_file():
+        logger.warning("应用图标缺失，使用默认图标：%s", icon_path)
+        return
+    icon = QIcon(str(icon_path))
+    if icon.isNull():
+        logger.warning("应用图标无法解析，使用默认图标：%s", icon_path)
+        return
+    app.setWindowIcon(icon)
 
 
 # ---- 单实例（文档 §3.6） ----------------------------------------------------

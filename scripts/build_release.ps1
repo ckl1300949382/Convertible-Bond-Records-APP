@@ -14,9 +14,18 @@ if (-not (Test-Path $py)) {
     exit 1
 }
 
+# 应用图标：exe 资源 + 运行时窗口图标（后者需打进包内 assets/）
+$icon = Join-Path $root "assets\app-icon.ico"
+if (-not (Test-Path $icon)) {
+    Write-Error "未找到应用图标 $icon；请先执行 .venv\Scripts\python scripts\build_app_icon.py"
+    exit 1
+}
+
 & $py -m PyInstaller --noconfirm --clean --onedir --windowed `
     --name "可转债收益记录" `
     --paths src `
+    --icon "assets\app-icon.ico" `
+    --add-data "assets\app-icon.ico;assets" `
     scripts\run_app.py
 if ($LASTEXITCODE -ne 0) { Write-Error "PyInstaller 构建失败"; exit 1 }
 

@@ -3,6 +3,15 @@
 格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)。
 程序版本采用 `MAJOR.MINOR.PATCH`，数据库 schema_version 独立递增（阶段 1 起）。
 
+## [未发布] - 2026-10-29 - 应用图标接入打包
+
+- 新增 `assets/app-icon.svg`（矢量源）与 `assets/app-icon.ico`（16/32/48/256 四档，16/32 用加粗变体保证小尺寸可辨识），色值取自 `ui/tokens.py`（墨底 `#121214`、涨红 `#c62828`/`#ff6b60`）
+- `scripts/build_app_icon.py`：本地渲染 + 打包 ico + 生成多尺寸预览，全程离线，不依赖任何图像库
+- `app.py` 新增 `_apply_window_icon`：显式设置 `QApplication.windowIcon`。exe 文件图标由打包参数写入，但窗口标题栏与任务栏取的是 Qt 应用图标，不设置会回落成 Qt 默认图标；图标缺失只记警告、不阻断启动
+- 新增 `_resource_root()`：打包后取 `sys._MEIPASS`（onedir 即 `_internal/`），源码运行取仓库根，两种形态共用一套路径
+- `scripts/build_release.ps1`：PyInstaller 加 `--icon`（exe 资源）与 `--add-data`（运行时图标），并在构建前校验图标存在
+- 本机实测：全量 228 项通过；exe 内四档图标数据逐字节比对一致；包内 `_internal/assets/app-icon.ico` 就位；打包与冒烟通过，`dist/可转债收益记录_v1.0.0_win64.zip`（约 49.6 MB）重新生成
+
 ## [未发布] - 2026-10-29 - UI 改版：提案 B「数字剧场」落地
 
 视觉方向已由用户确认（三套静态提案中选 B）。业务规则、数据库 schema、测试数量（228）均不变。
