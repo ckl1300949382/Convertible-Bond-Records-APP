@@ -71,6 +71,9 @@ _GLYPHS: dict[str, str] = {
     ),
     # 勾（备份完好）
     "check": '<path d="M4.5 10.5l3.4 3.4 7.6-8"/>',
+    # 分页箭头
+    "chev-left": '<path d="M12 4.5L6.5 10l5.5 5.5"/>',
+    "chev-right": '<path d="M8 4.5L13.5 10L8 15.5"/>',
     # 警告（备份异常）
     "alert": (
         '<path d="M10 3.2l7 12.4H3L10 3.2z"/>'

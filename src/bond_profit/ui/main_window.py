@@ -270,6 +270,7 @@ class MainWindow(QMainWindow):
         self.yearly_chart.set_label_color(label_color)
         # 图标是预渲染的，QSS 管不到，必须显式按新主题重新着色
         self.sidebar.refresh_icons(mode)
+        self.overview.refresh_theme()
         self.theme_button.setText("深色" if mode == "dark" else "浅色")
         self.theme_button.setToolTip("当前为{}主题，点击切换".format(
             "深色" if mode == "dark" else "浅色"

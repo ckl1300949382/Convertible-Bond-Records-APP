@@ -15,10 +15,10 @@
 
 from __future__ import annotations
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QRect, Qt
+from PySide6.QtGui import QColor
 from PySide6.QtWidgets import (
     QComboBox,
-    QFrame,
     QHBoxLayout,
     QHeaderView,
     QLabel,
@@ -26,14 +26,16 @@ from PySide6.QtWidgets import (
     QPushButton,
     QSizePolicy,
     QStackedWidget,
+    QStyledItemDelegate,
     QTableWidget,
     QTableWidgetItem,
     QVBoxLayout,
     QWidget,
 )
 
+from bond_profit.ui import icons, tokens
 from bond_profit.ui.bar_chart import BarChart
-from bond_profit.ui.widgets import PrimaryButton
+from bond_profit.ui.widgets import IconButton, PrimaryButton, current_mode
 
 _COLUMNS = (
     "卖出日期",
@@ -44,6 +46,10 @@ _COLUMNS = (
     "单笔收益(元)",
     "备注",
 )
+
+# 固定列宽（提案 B）：日期 94 / 名称 1fr / 代码 84 / 单价 92 / 数量 76 / 收益 100 / 备注 1fr。
+# 旧版 ResizeToContents 会让列宽随内容跳变，翻页时整行左右抖动。
+_FIXED_WIDTHS = {0: 94, 2: 84, 3: 92, 4: 76, 5: 100}
 
 
 def _named(widget: QWidget, name: str) -> QWidget:
@@ -60,6 +66,21 @@ def _set_sign_class(label: QLabel, value: float) -> None:
         label.setProperty("neg", new[1])
         label.style().unpolish(label)
         label.style().polish(label)
+
+
+class _RowHairlineDelegate(QStyledItemDelegate):
+    """行间 1px 发丝线。
+
+    QSS 的 ``::item { border-bottom }`` 在 QTableWidget 上渲染不可靠
+    （部分 style 会丢），所以用 delegate 在每个单元格底部补一条线；
+    颜色在绘制时实时取当前主题，主题切换无需手动刷新。
+    """
+
+    def paint(self, painter, option, index) -> None:  # noqa: N802 (Qt 命名)
+        super().paint(painter, option, index)
+        line = QColor(tokens.palette_for(current_mode()).line)
+        rect = option.rect
+        painter.fillRect(QRect(rect.left(), rect.bottom(), rect.width(), 1), line)
 
 
 class OverviewPage(QWidget):
@@ -177,47 +198,86 @@ class OverviewPage(QWidget):
         self.table.setSelectionMode(QTableWidget.SelectionMode.SingleSelection)
         self.table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self.table.setSortingEnabled(False)  # 手动管理排序，避免按文本排序
+        self.table.setShowGrid(False)  # 网格线换成行间发丝线（delegate 绘制）
+        self.table.setMouseTracking(True)  # 不按下也跟踪悬停，行 hover 高亮才生效
+        self.table.setVerticalScrollMode(QTableWidget.ScrollMode.ScrollPerPixel)
+        self.table.setItemDelegate(_RowHairlineDelegate(self.table))
+        self.table.verticalHeader().setVisible(False)
+        self.table.verticalHeader().setDefaultSectionSize(tokens.ROW_HEIGHT)
+
         header = self.table.horizontalHeader()
-        header.setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
-        header.setStretchLastSection(True)
+        header.setFixedHeight(tokens.HEADER_HEIGHT)
         header.setSortIndicatorShown(True)
+        # 固定宽度列 + 两列 stretch（名称/备注）均分剩余空间
+        header.setSectionResizeMode(QHeaderView.ResizeMode.Interactive)
+        for section, width in _FIXED_WIDTHS.items():
+            header.setSectionResizeMode(section, QHeaderView.ResizeMode.Fixed)
+            header.resizeSection(section, width)
+        header.setSectionResizeMode(1, QHeaderView.ResizeMode.Stretch)
+        header.setStretchLastSection(True)
         table_layout.addWidget(self.table, stretch=1)
 
-        # ---- 底部分页栏 -----------------------------------------------------
-        bottom = QHBoxLayout()
-        self.count_label = QLabel("")
+        # ---- 底部分页栏（tfoot：顶部发丝线 + 轻量胶囊分页） ----------------
+        tfoot = QWidget()
+        _named(tfoot, "tfoot")
+        bottom = QHBoxLayout(tfoot)
+        bottom.setContentsMargins(0, 0, 0, 0)
+        self.count_label = _named(QLabel(""), "footMeta")
         bottom.addWidget(self.count_label)
         bottom.addStretch()
-        self.prev_button = QPushButton("上一页")
-        self.page_label = QLabel("")
-        self.next_button = QPushButton("下一页")
+        # 文本契约：page_label 保持「第 N / M 页」（测试断言依赖该格式）
+        self.page_label = _named(QLabel(""), "footMeta")
+        self.prev_button = IconButton("chev-left", tooltip="上一页")
+        self.next_button = IconButton("chev-right", tooltip="下一页")
         bottom.addWidget(self.prev_button)
         bottom.addWidget(self.page_label)
         bottom.addWidget(self.next_button)
-        table_layout.addLayout(bottom)
+        table_layout.addWidget(tfoot)
 
         self.stack.addWidget(table_page)
 
-        # ---- 空状态页（§3.2：清晰空状态 + 新增入口，不插入示例数据） -------
+        # ---- 空状态页（§3.2：图形引导 + 主操作，不插入示例数据） -----------
         empty_page = QWidget()
         empty_layout = QVBoxLayout(empty_page)
         empty_layout.addStretch()
+
+        empty_col = QVBoxLayout()
+        empty_col.setSpacing(12)
+        empty_col.setAlignment(Qt.AlignmentFlag.AlignHCenter)
+
+        # 46px 圆角底 + 22px 线性图标（提案 B 的空状态视觉锚点）
+        self._empty_icon_holder = _named(QLabel(), "emptyIcon")
+        self._empty_icon_holder.setFixedSize(46, 46)
+        self._empty_icon_holder.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        empty_col.addWidget(
+            self._empty_icon_holder, alignment=Qt.AlignmentFlag.AlignHCenter
+        )
+
         self.empty_title = QLabel("还没有任何卖出记录")
         self.empty_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         self.empty_title.setObjectName("emptyTitle")
-        empty_layout.addWidget(self.empty_title)
+        empty_col.addWidget(self.empty_title)
+
+        self.empty_sub = QLabel("新增第一条后，这里会自动算出收益与走势")
+        self.empty_sub.setAlignment(Qt.AlignmentFlag.AlignCenter)
+        self.empty_sub.setObjectName("emptySub")
+        empty_col.addWidget(self.empty_sub)
+
         button_row = QHBoxLayout()
         button_row.addStretch()
-        self.empty_add_button = PrimaryButton("新增第一条记录")
+        self.empty_add_button = PrimaryButton("新增第一条记录", icon_name="plus")
         button_row.addWidget(self.empty_add_button)
         button_row.addStretch()
-        empty_layout.addLayout(button_row)
+        empty_col.addLayout(button_row)
+
+        empty_layout.addLayout(empty_col)
         empty_layout.addStretch()
         self.stack.addWidget(empty_page)
 
         layout.addWidget(self.stack, stretch=1)
 
         self._table_page_index = 0
+        self.refresh_theme()  # 初始空状态图标着色
 
     # ------------------------------------------------------------------ UI
 
@@ -235,6 +295,13 @@ class OverviewPage(QWidget):
         hero.addLayout(box)
         hero.addSpacing(34)
         return value
+
+    def refresh_theme(self) -> None:
+        """主题切换后重取图标颜色（空状态图标是预渲染位图，QSS 管不到）。"""
+        palette = tokens.palette_for(current_mode())
+        self._empty_icon_holder.setPixmap(
+            icons.pixmap("data", palette.text_3, size=22)
+        )
 
     def show_table(self, has_records: bool) -> None:
         """有记录显示表格页，否则显示空状态页。"""

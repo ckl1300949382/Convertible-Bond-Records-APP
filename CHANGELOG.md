@@ -38,6 +38,15 @@
   - 测试更新（已批准的 4 处断言）：`total_profit_value` / `year_profit_value` / `month_profit_value` 的 `text()` 不再含「元」（`"+400.00 元"` → `"+400.00"`）；`total_count_value` 仍为 `"N 笔"`
   - 本机实测：全量 228 项通过；浅色/深色截图核对，hero 主次、主按钮胶囊、深色可读性均正常
 
+- 批次 4（表格视觉与空状态）：
+  - 表格列宽固定（94/1fr/84/92/76/100/1fr，名称与备注均分余量）——替代旧版 `ResizeToContents`，翻页时列宽不再随内容左右抖动
+  - 行高 30px（`tokens.ROW_HEIGHT`）、表头高 26px；去网格（`setShowGrid(False)`），行间 1px 发丝线改由 `_RowHairlineDelegate` 绘制（QSS 的 item border 在 QTableWidget 上渲染不可靠）；开启鼠标跟踪 + `::item:hover` 行悬停高亮
+  - 纵向滚动改 `ScrollPerPixel`，滚动手感更细腻
+  - 分页栏升级：顶部发丝线（`#tfoot` border-top）、按钮换成 26px 图标箭头（`IconButton` + 新增 `chev-left/chev-right` 图标）；**page_label 文本契约不变**（仍为「第 N / M 页」，7 处测试断言原样通过）
+  - 空状态图形化：46px 圆角图标底 + 22px 线性图标 + 标题 + 副文案「新增第一条后，这里会自动算出收益与走势」+ 主按钮；`empty_title.text()` 契约不变
+  - `OverviewPage.refresh_theme()`：空状态图标随主题重新着色，挂入 `_apply_theme_mode`
+  - 本机实测：全量 228 项通过；浅色表格（发丝线/固定列宽/弱化表头）、深色、空状态三态截图核对
+
 ## [未发布] - 2026-10-28 - 维护：测试隔离与文档修正
 
 不含业务逻辑变更，程序版本号与数据库 schema_version 均不变。

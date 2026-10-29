@@ -129,19 +129,25 @@ BarChart {
     background-color: $canvas;
     border: none;
 }
+/* 表格：无网格，行间发丝线由 delegate 绘制；行高与列宽在代码里控制 */
 QTableWidget {
     background-color: $canvas;
     alternate-background-color: $canvas;
     border: none;
     color: $text;
     font-size: ${f_body}px;
-    gridline-color: $line;
+    gridline-color: transparent;
     outline: none;
     selection-background-color: $selection;
     selection-color: $text;
 }
 QTableWidget::item {
     padding: 0 8px;
+    border: none;
+}
+QTableWidget::item:hover {
+    background-color: $selection;
+    color: $text;
 }
 QTableWidget::item:selected {
     background-color: $selection;
@@ -157,8 +163,8 @@ QHeaderView::section {
     border: none;
     border-bottom: 1px solid $line_strong;
     color: $text_3;
-    font-size: ${f_small}px;
-    padding: 4px 8px;
+    font-size: 10.5px;
+    padding: 0 8px;
 }
 QHeaderView::section:hover {
     color: $text_2;
@@ -166,6 +172,25 @@ QHeaderView::section:hover {
 QTableCornerButton::section {
     background-color: $canvas;
     border: none;
+}
+
+/* ---- 总览页底部分页栏：顶部发丝线 + 弱化文字 ---- */
+QWidget#tfoot {
+    background: transparent;
+    border-top: 1px solid $line_strong;
+}
+QLabel#footMeta {
+    color: $text_3;
+    font-size: 11.5px;
+}
+QPushButton#iconButton {
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: ${radius_chip}px;
+    padding: 0;
+}
+QPushButton#iconButton:hover {
+    background-color: $fill_hover;
 }
 
 /* ---- 左侧导航 ---- */
@@ -295,8 +320,17 @@ QLabel#chartTitle {
     font-size: ${f_body}px;
 }
 QLabel#emptyTitle {
+    color: $text;
+    font-size: 13.5px;
+    font-weight: 500;
+}
+QLabel#emptySub {
     color: $text_3;
-    font-size: ${f_title}px;
+    font-size: 11.5px;
+}
+QLabel#emptyIcon {
+    background-color: $fill;
+    border-radius: 13px;
 }
 
 /* ---- 滚动条：默认隐形，悬停显形 ---- */
