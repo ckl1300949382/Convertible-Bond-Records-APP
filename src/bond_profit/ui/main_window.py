@@ -76,6 +76,7 @@ class MainWindow(QMainWindow):
         self._sort_desc = True
 
         self.setWindowTitle(f"可转债收益记录 v{bond_profit.__version__}")
+        self.setMinimumSize(1080, 760)  # 文档本意：最小可用尺寸，防止布局被压碎
         self.resize(1080, 760)
 
         central = QWidget()

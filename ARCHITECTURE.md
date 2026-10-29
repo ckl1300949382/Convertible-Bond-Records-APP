@@ -39,7 +39,11 @@ ui ──▶ application ──▶ domain
 - `ui/backup_page.py`：备份与恢复页——手动备份、备份列表（时间/类型/记录数/库版本/验证状态）、恢复确认（数据替换警告）、立即检查/刷新；按钮仅发射信号由主窗口槽内调服务
 - `ui/record_dialog.py`：新增/编辑弹窗（校验提示、失败保留输入、Esc 确认放弃、Ctrl+S）
 - `ui/bar_chart.py`：自绘柱状图（盈红/亏绿/零中性、数值带正负号、负值向零轴下方）
-- `ui/theme.py`：Windows 主题检测 + 深色 QSS 调色板
+- `ui/tokens.py`：双主题令牌唯一来源（Palette/字号阶/圆角/控件高度，tnum 等宽数字；详见决策 19）
+- `ui/widgets.py`：公共控件层（Sidebar/BrandMark/StatusDot/IconButton/PrimaryButton/GhostButton/Segmented/Section/Divider/MiniStat/RowHairlineDelegate）
+- `ui/icons.py`：13 个内联 SVG 图标（QSvgRenderer 渲染，完全离线，不缓存 QPixmap）
+- `ui/overview_page.py` / `ui/data_management.py` / `ui/backup_page.py`：三个页面只管外观与信号，数据填充与业务编排留在 MainWindow（控件属性名转发保持测试契约）
+- `ui/theme.py`：由令牌生成浅/深两套完整 QSS；`apply_theme(app, mode)` 打 `bpThemeMode` 属性；QSS 不更新 QPalette，Qt 内部绘制控件（下拉/日历/菜单/消息框）需显式补规则
 - `ui/prefs.py`：QSettings 偏好读写（**只记主题**；窗口尺寸/位置与表格排序不持久化，也不记筛选），ini 路径可注入
 
 ## 关键设计决策
@@ -61,4 +65,5 @@ ui ──▶ application ──▶ domain
 15. **发布打包**（阶段 5）：一键脚本 `scripts/build_release.ps1`——PyInstaller onedir + windowed、正式中文名 exe、拷入 `docs/版本说明.txt` 与 `docs/使用说明.txt`、启动冒烟（存活 6 秒 + 正常关闭，单实例冲突时明确提示）、压缩为 `dist/可转债收益记录_v{版本}_win64.zip`；入口为 `scripts/run_app.py`（app.py 无 `__main__` 守卫）；脚本必须 UTF-8 with BOM（PowerShell 5 按 ANSI 读无 BOM 文件会乱码）；spec/中间产物在根目录与 `build/`，均已不入 Git（决策 6）。
 16. **测试不碰真实偏好**（2026-10-28）：`ui/prefs.open_settings(ini_path)` 的路径注入由 `tests/conftest.py` 的 autouse 夹具兜底——未显式传 `settings_path` 时自动指向用例临时 ini。原因：`MainWindow` 构造时不传该参数就会用平台存储（Windows 注册表），而 `closeEvent` 会写回排序/几何，导致用例间互相污染、并把测试行为留存进用户偏好。
 17. **界面只记主题**（2026-10-29）：窗口尺寸/位置与表格排序不再持久化，每次启动固定 1080×760、日期降序。原因：后续 UI 改版时，旧几何数据会把新布局挤压甚至让窗口落到屏幕外，旧排序键也可能与新表格列对不上；`closeEvent` 不再写任何偏好，`prefs` 只保留 `resolve_theme` / `save_theme`。
-16. **全局异常兜底**（阶段 5）：`sys.excepthook`（ui/error_hook.py）写完整堆栈日志 + 中文弹窗提示，不强制退出；数据层受控异常仍由服务/UI 层处理，不经兜底钩子；日志入口用 `current_log_dir()` 定位最近一次初始化的日志目录。
+18. **全局异常兜底**（阶段 5）：`sys.excepthook`（ui/error_hook.py）写完整堆栈日志 + 中文弹窗提示，不强制退出；数据层受控异常仍由服务/UI 层处理，不经兜底钩子；日志入口用 `current_log_dir()` 定位最近一次初始化的日志目录。
+19. **UI 三层结构：令牌 → QSS → 组件**（UI 改版批次 1–6）：`ui/tokens.py` 是色值/字号/圆角/控件尺寸的唯一来源（双主题 `Palette`，字号一律 px 不用 pt）；`ui/theme.py` 由令牌 + 同一份模板生成两套完整 QSS（`apply_theme` 在 QApplication 上打 `bpThemeMode` 属性；动态属性变化须 unpolish+polish 才会重新匹配 QSS）；`ui/widgets.py` 沉淀 Sidebar/PrimaryButton/GhostButton/Section/MiniStat/StatusDot/Segmented/RowHairlineDelegate 等公共控件；overview_page / data_management / backup_page / 两个弹窗一律从令牌与组件取样式，禁止内联硬编码色值。涨红跌绿只在 tokens 一处定义（`profit`/`loss`，深色调亮不改语义）。窗口最小尺寸 `setMinimumSize(1080, 760)`。

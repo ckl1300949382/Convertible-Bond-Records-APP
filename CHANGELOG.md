@@ -64,6 +64,13 @@
   - `theme.py` 补 `#sectionCard`、`#miniValue[pos/neg/danger]`、`#statusChip`、`#errorSlot`、`#dangerButton` 等 QSS 规则（均 objectName 限定，无裸 QWidget 选择器）
   - 本机实测：全量 228 项通过；浅色四页截图 + 数值探针核对（页面画布 #ffffff、恢复按钮描边 #c62828 且填充透明、主按钮实心、错误文案为 danger 色），无黑字压浅底、无布局撑高
 
+- 批次 7（收尾）：
+  - `ui/main_window.py` 补 `setMinimumSize(1080, 760)`——文档本意的最小可用尺寸此前只写了 `resize` 从未生效，窗口可被拖到布局压碎
+  - DPI 实测（`QT_SCALE_FACTOR=1.25 / 1.5` 各跑一遍逐控件越界扫描脚本 `scripts/_verify_batch6.py dpi`）：三个页面 + 记录弹窗所有可见控件均在窗口可视范围内（125% 与 150% 均 0 处越界），最小尺寸钳制生效；字号全部为 px（grep 确认无 pt 残留），高 DPI 由 Qt 按 devicePixelRatio 统一缩放
+  - 打包冒烟：`scripts/build_release.ps1` 全流程通过——PyInstaller onedir 构建成功、打包后 exe 启动存活 6 秒正常关闭、发布包 `dist/可转债收益记录_v1.0.0_win64.zip` 生成（约 52 MB）
+  - 文档同步：`ARCHITECTURE.md` 修正「关键设计决策」编号重复（原有两个 16，全局异常兜底改为 18），补决策 19（UI 三层结构：令牌 → QSS → 组件）与 ui/tokens/widgets/icons/各页面模块说明
+  - 本机实测：全量 228 项通过
+
 ## [未发布] - 2026-10-28 - 维护：测试隔离与文档修正
 
 不含业务逻辑变更，程序版本号与数据库 schema_version 均不变。
