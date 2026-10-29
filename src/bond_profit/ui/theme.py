@@ -319,6 +319,25 @@ QLabel#chartTitle {
     color: $text_2;
     font-size: ${f_body}px;
 }
+/* 分段控件（月度/年度切换）：选中项深色胶囊 */
+QWidget#segmented {
+    background-color: $fill;
+    border-radius: ${radius_control}px;
+}
+QPushButton#segmentButton {
+    background: transparent;
+    border: none;
+    border-radius: ${radius_control}px;
+    color: $text_2;
+    font-size: ${f_body}px;
+    min-height: 22px;
+    padding: 0 12px;
+}
+QPushButton#segmentButton:checked {
+    background-color: $accent;
+    color: $accent_fg;
+    font-weight: 500;
+}
 QLabel#emptyTitle {
     color: $text;
     font-size: 13.5px;

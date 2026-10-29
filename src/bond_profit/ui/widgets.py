@@ -16,7 +16,7 @@
 
 from __future__ import annotations
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import Signal, Qt
 from PySide6.QtWidgets import (
     QFrame,
     QHBoxLayout,
@@ -142,6 +142,54 @@ class GhostButton(QPushButton):
             return
         palette = tokens.palette_for(current_mode())
         self.setIcon(icons.icon(self._icon_name, palette.text_2, size=14))
+
+
+class Segmented(QWidget):
+    """分段控件（Apple 风格）：N 个文字选项单选，选中项深色胶囊。
+
+    替代两个并排的 QRadioButton/普通按钮组；选项少（2–3 个）时最轻量。
+    """
+
+    currentChanged = Signal(int)
+
+    def __init__(self, options: list[str], current: int = 0, parent: QWidget | None = None) -> None:
+        super().__init__(parent)
+        self.setObjectName("segmented")
+        row = QHBoxLayout(self)
+        row.setContentsMargins(2, 2, 2, 2)
+        row.setSpacing(2)
+        self._buttons: list[QPushButton] = []
+        for i, text in enumerate(options):
+            button = QPushButton(text)
+            button.setObjectName("segmentButton")
+            button.setCheckable(True)
+            button.setChecked(i == current)
+            button.setCursor(Qt.CursorShape.PointingHandCursor)
+            button.clicked.connect(lambda _checked=False, idx=i: self._select(idx))
+            row.addWidget(button)
+            self._buttons.append(button)
+        self._apply_checked()
+
+    def _select(self, index: int) -> None:
+        changed = index != self.current
+        for i, button in enumerate(self._buttons):
+            button.setChecked(i == index)
+        self._apply_checked()
+        if changed:
+            self.currentChanged.emit(index)
+
+    def _apply_checked(self) -> None:
+        # 动态属性切换后重新 polish，QSS 的选中态才会刷新
+        for button in self._buttons:
+            button.style().unpolish(button)
+            button.style().polish(button)
+
+    @property
+    def current(self) -> int:
+        for i, button in enumerate(self._buttons):
+            if button.isChecked():
+                return i
+        return 0
 
 
 class Sidebar(QFrame):

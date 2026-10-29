@@ -35,7 +35,7 @@ from PySide6.QtWidgets import (
 
 from bond_profit.ui import icons, tokens
 from bond_profit.ui.bar_chart import BarChart
-from bond_profit.ui.widgets import IconButton, PrimaryButton, current_mode
+from bond_profit.ui.widgets import IconButton, PrimaryButton, Segmented, current_mode
 
 _COLUMNS = (
     "卖出日期",
@@ -166,30 +166,32 @@ class OverviewPage(QWidget):
         table_layout.setContentsMargins(0, 0, 0, 0)
         table_layout.setSpacing(6)
 
-        # 图表区（批次 5 重绘样式，本批仅迁移结构；必须保持 BarChart 类型）
-        charts_row = QHBoxLayout()
-        charts_row.setSpacing(16)
-
-        monthly_box = QVBoxLayout()
-        monthly_header = QHBoxLayout()
-        self.monthly_title = _named(QLabel("月度收益"), "chartTitle")
-        monthly_header.addWidget(self.monthly_title)
-        monthly_header.addStretch()
+        # 图表区（批次 5）：月度/年度分段切换；两个 BarChart 都是真控件，
+        # 数据始终同步刷新（测试同时断言两者 items），只是视觉上一次显示一个
+        self.chart_segmented = Segmented(["月度收益", "年度收益"])
         self.chart_year_combo = QComboBox()
         self.chart_year_combo.setEnabled(False)  # 无记录时不可选
-        monthly_header.addWidget(self.chart_year_combo)
-        monthly_box.addLayout(monthly_header)
+        self.chart_year_combo.setToolTip("月度图按年份查看")
+
+        chart_head = QHBoxLayout()
+        chart_head.setSpacing(8)
+        chart_head.addWidget(self.chart_segmented)
+        chart_head.addStretch()
+        chart_head.addWidget(self.chart_year_combo)
+
         self.monthly_chart = BarChart()
-        monthly_box.addWidget(self.monthly_chart)
-        charts_row.addLayout(monthly_box, stretch=1)
-
-        yearly_box = QVBoxLayout()
-        yearly_box.addWidget(_named(QLabel("年度收益"), "chartTitle"))
         self.yearly_chart = BarChart()
-        yearly_box.addWidget(self.yearly_chart)
-        charts_row.addLayout(yearly_box, stretch=1)
+        self.chart_stack = QStackedWidget()
+        self.chart_stack.addWidget(self.monthly_chart)
+        self.chart_stack.addWidget(self.yearly_chart)
 
-        table_layout.addLayout(charts_row)
+        chart_area = QVBoxLayout()
+        chart_area.setSpacing(6)
+        chart_area.addLayout(chart_head)
+        chart_area.addWidget(self.chart_stack)
+        table_layout.addLayout(chart_area)
+
+        self.chart_segmented.currentChanged.connect(self._on_chart_mode_changed)
 
         # ---- 记录表格 -----------------------------------------------------
         self.table = QTableWidget(0, len(_COLUMNS))
@@ -306,6 +308,11 @@ class OverviewPage(QWidget):
     def show_table(self, has_records: bool) -> None:
         """有记录显示表格页，否则显示空状态页。"""
         self.stack.setCurrentIndex(self._table_page_index if has_records else 1)
+
+    def _on_chart_mode_changed(self, index: int) -> None:
+        """月度/年度分段切换；年份下拉只对月度图有意义。"""
+        self.chart_stack.setCurrentIndex(index)
+        self.chart_year_combo.setVisible(index == 0)
 
     # ----------------------------------------------------------------- 数据
 
