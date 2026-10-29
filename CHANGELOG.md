@@ -28,6 +28,16 @@
   - 修复自绘图表深色下露浅灰底：QSS 不更新 QPalette（已知坑 5 的又一实例），`BarChart` 开启 `WA_StyledBackground` 并加 QSS `BarChart` 规则，背景随主题自动切换（探针实测深色 `#121214` / 浅色 `#ffffff`）
   - 本机实测：全量 228 项通过；真实窗口截图核对，侧栏三图标、选中高亮（盈利红图标 + 卡片底）、底部状态行在浅色/深色下均正常
 
+- 批次 3（总览页迁出 + hero 数字排版）：
+  - 新增 `ui/overview_page.py`：总览页整体（页标题、工具栏、hero 指标区、图表、表格、分页、空状态）从 `main_window.py` 迁出——此前 170 行 UI 构建堆在 `__init__`；页面只管外观，数据填充与业务编排留在 MainWindow
+  - **属性转发**：`window.table` / `window.search_input` / `window.total_profit_value` 等约 20 个控件名原样保留，1798 行 UI 测试对控件的直接访问零改动
+  - hero 排版：累计收益 62px 唯一主视觉（数字与「元」拆为两个标签，62px/15px），本年/本月/累计卖出降为 19px mini——旧版四张同权重卡片废除
+  - 涨红跌绿扩展到 hero/mini：按数值正负切 QSS 动态属性（pos/neg），零为中性色；盈利/亏损语义色值不变
+  - 新增 `QPushButton#primaryButton` 主按钮样式（深色实心胶囊，「新增记录」/空状态入口使用）
+  - MainWindow 瘦身：删除 `_make_stat_card`，表格填充/分页刷新下沉到 `overview.fill_table` / `set_pager`；清理 9 个不再使用的 QtWidgets 导入
+  - 测试更新（已批准的 4 处断言）：`total_profit_value` / `year_profit_value` / `month_profit_value` 的 `text()` 不再含「元」（`"+400.00 元"` → `"+400.00"`）；`total_count_value` 仍为 `"N 笔"`
+  - 本机实测：全量 228 项通过；浅色/深色截图核对，hero 主次、主按钮胶囊、深色可读性均正常
+
 ## [未发布] - 2026-10-28 - 维护：测试隔离与文档修正
 
 不含业务逻辑变更，程序版本号与数据库 schema_version 均不变。

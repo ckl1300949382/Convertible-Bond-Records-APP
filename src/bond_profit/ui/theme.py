@@ -65,6 +65,27 @@ QPushButton:default:hover {
     background-color: $accent;
     color: $accent_fg;
 }
+/* 主操作按钮：一个页面只出现一次（总览「新增记录」、空状态入口） */
+QPushButton#primaryButton {
+    background-color: $accent;
+    border: 1px solid $accent;
+    border-radius: ${radius_control}px;
+    color: $accent_fg;
+    font-size: ${f_body}px;
+    font-weight: 500;
+    min-height: ${control_h}px;
+    padding: 0 13px;
+}
+QPushButton#primaryButton:hover {
+    background-color: $accent;
+    border-color: $accent;
+    color: $accent_fg;
+    opacity: 0.86;
+}
+QPushButton#primaryButton:pressed {
+    background-color: $accent;
+    opacity: 0.75;
+}
 
 /* ---- 输入类控件 ---- */
 QLineEdit, QComboBox, QSpinBox, QDateEdit {
@@ -231,6 +252,53 @@ QLabel#statusDot[ok="true"] {
     background-color: $profit;
 }
 
+/* ---- 总览页：hero 数字区（累计收益唯一主视觉，其余降为 mini） ---- */
+QLabel#pageTitle {
+    color: $text;
+    font-size: ${f_title}px;
+    font-weight: 600;
+}
+QLabel#heroLabel, QLabel#miniLabel {
+    color: $text_2;
+    font-size: 11px;
+}
+QLabel#heroValue {
+    color: $text;
+    font-size: ${f_hero}px;
+    font-weight: 600;
+    letter-spacing: -3px;
+}
+QLabel#heroValue[pos="1"] {
+    color: $profit;
+}
+QLabel#heroValue[neg="1"] {
+    color: $loss;
+}
+QLabel#heroUnit {
+    color: $text_2;
+    font-size: 15px;
+    font-weight: 500;
+}
+QLabel#miniValue {
+    color: $text;
+    font-size: ${f_mini}px;
+    font-weight: 600;
+}
+QLabel#miniValue[pos="1"] {
+    color: $profit;
+}
+QLabel#miniValue[neg="1"] {
+    color: $loss;
+}
+QLabel#chartTitle {
+    color: $text_2;
+    font-size: ${f_body}px;
+}
+QLabel#emptyTitle {
+    color: $text_3;
+    font-size: ${f_title}px;
+}
+
 /* ---- 滚动条：默认隐形，悬停显形 ---- */
 QScrollBar:vertical {
     background: transparent;
@@ -336,6 +404,9 @@ def _substitutions(mode: str) -> dict[str, str]:
     values["f_small"] = str(tokens.FONT_SIZE["small"])
     values["f_body"] = str(tokens.FONT_SIZE["body"])
     values["f_base"] = str(tokens.FONT_SIZE["base"])
+    values["f_title"] = str(tokens.FONT_SIZE["title"])
+    values["f_mini"] = str(tokens.FONT_SIZE["mini"])
+    values["f_hero"] = str(tokens.FONT_SIZE["hero"])
     return values
 
 

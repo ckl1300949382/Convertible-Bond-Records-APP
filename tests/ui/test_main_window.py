@@ -284,9 +284,9 @@ def test_stat_cards_show_global_values(service, qtbot):
     window = MainWindow(service, ExcelService(service))
     qtbot.addWidget(window)
 
-    assert window.total_profit_value.text() == "+400.00 元"
-    assert window.year_profit_value.text() == "+300.00 元"  # 2025 年不计入本年
-    assert window.month_profit_value.text() == "+300.00 元"
+    assert window.total_profit_value.text() == "+400.00"  # 「元」是独立小号标签
+    assert window.year_profit_value.text() == "+300.00"  # 2025 年不计入本年
+    assert window.month_profit_value.text() == "+300.00"
     assert window.total_count_value.text() == "2 笔"
 
 
@@ -335,7 +335,7 @@ def test_stat_cards_refresh_after_delete(service, qtbot, monkeypatch):
     window._on_delete()
 
     assert window.total_count_value.text() == "0 笔"
-    assert window.total_profit_value.text() == "0.00 元"
+    assert window.total_profit_value.text() == "0.00"  # 「元」是独立小号标签
 
 
 def test_empty_state_shown_when_no_records(service, qtbot):

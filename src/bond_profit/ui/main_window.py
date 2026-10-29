@@ -14,19 +14,10 @@ from PySide6.QtCore import Qt, QTimer, QUrl
 from PySide6.QtGui import QDesktopServices, QKeySequence, QShortcut
 from PySide6.QtWidgets import (
     QApplication,
-    QComboBox,
-    QFrame,
     QHBoxLayout,
-    QHeaderView,
-    QLabel,
-    QLineEdit,
-    QListWidget,
     QMainWindow,
     QMessageBox,
-    QPushButton,
     QStackedWidget,
-    QTableWidget,
-    QTableWidgetItem,
     QVBoxLayout,
     QWidget,
 )
@@ -43,6 +34,7 @@ from bond_profit.ui import prefs, theme
 from bond_profit.ui.backup_page import BackupPage
 from bond_profit.ui.bar_chart import BarChart
 from bond_profit.ui.data_management import DataManagementPage
+from bond_profit.ui.overview_page import OverviewPage
 from bond_profit.ui.record_dialog import RecordDialog
 from bond_profit.ui.widgets import Sidebar
 
@@ -104,94 +96,35 @@ class MainWindow(QMainWindow):
         self.pages = QStackedWidget()
         root.addWidget(self.pages, stretch=1)
 
-        overview_page = QWidget()
-        layout = QVBoxLayout(overview_page)
+        # ---- 总览页（批次 3 迁出至 OverviewPage） ----------------------------
+        # 页面只管外观；数据填充与业务编排留在本类。控件按原名转发，
+        # 测试对 window.table / window.total_profit_value 等的访问不受影响。
+        self.overview = OverviewPage()
+        overview = self.overview
+        self.add_button = overview.add_button
+        self.edit_button = overview.edit_button
+        self.delete_button = overview.delete_button
+        self.search_input = overview.search_input
+        self.year_combo = overview.year_combo
+        self.month_combo = overview.month_combo
+        self.total_profit_value = overview.total_profit_value
+        self.year_profit_value = overview.year_profit_value
+        self.month_profit_value = overview.month_profit_value
+        self.total_count_value = overview.total_count_value
+        self.stack = overview.stack
+        self.chart_year_combo = overview.chart_year_combo
+        self.monthly_chart = overview.monthly_chart
+        self.yearly_chart = overview.yearly_chart
+        self.table = overview.table
+        self.count_label = overview.count_label
+        self.page_label = overview.page_label
+        self.prev_button = overview.prev_button
+        self.next_button = overview.next_button
+        self.empty_add_button = overview.empty_add_button
+        self.empty_title = overview.empty_title
 
-        # ---- 顶部工具栏：动作按钮 + 搜索/筛选 --------------------------------
-        toolbar = QHBoxLayout()
-        self.add_button = QPushButton("新增记录")
-        self.edit_button = QPushButton("编辑记录")
-        self.delete_button = QPushButton("删除记录")
-        for button in (self.add_button, self.edit_button, self.delete_button):
-            toolbar.addWidget(button)
-        toolbar.addStretch()
-
-        self.search_input = QLineEdit()
-        self.search_input.setPlaceholderText("搜索名称或代码")
-        self.search_input.setClearButtonEnabled(True)
-        self.search_input.setFixedWidth(200)
-        self.search_input.setToolTip("按 Ctrl+F 快速聚焦")
-        toolbar.addWidget(self.search_input)
-
-        self.year_combo = QComboBox()
-        self.year_combo.setFixedWidth(100)
-        toolbar.addWidget(self.year_combo)
-
-        self.month_combo = QComboBox()
-        self.month_combo.setFixedWidth(90)
-        self.month_combo.setEnabled(False)  # 选择具体年份后才可用
-        self.month_combo.addItem("全部月份", None)
-        for month in range(1, 13):
-            self.month_combo.addItem(f"{month} 月", month)
-        toolbar.addWidget(self.month_combo)
-
-        layout.addLayout(toolbar)
-
-        # ---- 统计卡片：全局值，不随列表搜索/筛选变化（§3.2，STA-01） ----------
-        cards_row = QHBoxLayout()
-        self.total_profit_value = self._make_stat_card(
-            cards_row, "累计收益"
-        )
-        self.year_profit_value = self._make_stat_card(cards_row, "本年收益")
-        self.month_profit_value = self._make_stat_card(cards_row, "本月收益")
-        self.total_count_value = self._make_stat_card(
-            cards_row, "累计卖出笔数"
-        )
-        layout.addLayout(cards_row)
-
-        # ---- 页面栈：记录表格页 / 空状态页 ------------------------------------
-        self.stack = QStackedWidget()
-
-        table_page = QWidget()
-        table_layout = QVBoxLayout(table_page)
-        table_layout.setContentsMargins(0, 0, 0, 0)
-
-        # ---- 图表区（§3.5）：月度（可选年份）与年度柱状图 ----------------------
-        charts_row = QHBoxLayout()
-
-        monthly_frame = QFrame()
-        monthly_box = QVBoxLayout(monthly_frame)
-        monthly_header = QHBoxLayout()
-        monthly_header.addWidget(QLabel("月度收益"))
-        monthly_header.addStretch()
-        self.chart_year_combo = QComboBox()
-        self.chart_year_combo.setEnabled(False)  # 无记录时不可选
-        monthly_header.addWidget(self.chart_year_combo)
-        monthly_box.addLayout(monthly_header)
-        self.monthly_chart = BarChart()
-        monthly_box.addWidget(self.monthly_chart)
-        charts_row.addWidget(monthly_frame, stretch=1)
-
-        yearly_frame = QFrame()
-        yearly_box = QVBoxLayout(yearly_frame)
-        yearly_box.addWidget(QLabel("年度收益"))
-        self.yearly_chart = BarChart()
-        yearly_box.addWidget(self.yearly_chart)
-        charts_row.addWidget(yearly_frame, stretch=1)
-
-        table_layout.addLayout(charts_row)
-
-        # ---- 记录表格 --------------------------------------------------------
-        self.table = QTableWidget(0, len(_COLUMNS))
-        self.table.setHorizontalHeaderLabels(_COLUMNS)
-        self.table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
-        self.table.setSelectionMode(QTableWidget.SelectionMode.SingleSelection)
-        self.table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
-        self.table.setSortingEnabled(False)  # 手动管理排序，避免按文本排序
+        # 排序指示器初始状态由本类持有（排序键不持久化，重启回到日期降序）
         header = self.table.horizontalHeader()
-        header.setSectionResizeMode(QHeaderView.ResizeMode.ResizeToContents)
-        header.setStretchLastSection(True)
-        header.setSortIndicatorShown(True)
         _section_for_key = {key: sec for sec, key in _SORTABLE_COLUMNS.items()}
         header.setSortIndicator(
             _section_for_key[self._sort_key],
@@ -199,43 +132,9 @@ class MainWindow(QMainWindow):
             if self._sort_desc
             else Qt.SortOrder.AscendingOrder,
         )
-        table_layout.addWidget(self.table)
-
-        # ---- 底部分页栏 --------------------------------------------------------
-        bottom = QHBoxLayout()
-        self.count_label = QLabel("")
-        bottom.addWidget(self.count_label)
-        bottom.addStretch()
-        self.prev_button = QPushButton("上一页")
-        self.next_button = QPushButton("下一页")
-        self.page_label = QLabel("")
-        bottom.addWidget(self.prev_button)
-        bottom.addWidget(self.page_label)
-        bottom.addWidget(self.next_button)
-        table_layout.addLayout(bottom)
-
-        self.stack.addWidget(table_page)
-
-        # ---- 空状态页（§3.2：清晰空状态 + 新增入口，不插入示例数据） -----------
-        empty_page = QWidget()
-        empty_layout = QVBoxLayout(empty_page)
-        empty_layout.addStretch()
-        self.empty_title = QLabel("还没有任何卖出记录")
-        self.empty_title.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        empty_layout.addWidget(self.empty_title)
-        button_row = QHBoxLayout()
-        button_row.addStretch()
-        self.empty_add_button = QPushButton("新增第一条记录")
-        button_row.addWidget(self.empty_add_button)
-        button_row.addStretch()
-        empty_layout.addLayout(button_row)
-        empty_layout.addStretch()
-        self.stack.addWidget(empty_page)
-
-        layout.addWidget(self.stack)
 
         # 总览页完成，加入页面栈；数据管理页由批次 10 提供（§4）
-        self.pages.addWidget(overview_page)
+        self.pages.addWidget(overview)
         self.data_page = DataManagementPage(excel_service)
         self.data_page.export_filtered_requested.connect(self._on_export_filtered)
         self.pages.addWidget(self.data_page)
@@ -398,52 +297,36 @@ class MainWindow(QMainWindow):
 
         self._refresh_stat_cards()
         self._refresh_charts()
-        self.stack.setCurrentIndex(1 if self._total == 0 else 0)
+        self.overview.show_table(self._total > 0)
 
-        self.table.setRowCount(len(self._records))
-        for row, record in enumerate(self._records):
-            profit = profit_per_record(record.sale_price, record.quantity)
-            values = (
-                record.sale_date.isoformat(),
-                record.bond_name,
-                record.bond_code,
-                f"{record.sale_price:.2f}",
-                str(record.quantity),
-                format_money(profit),
-                record.note,
-            )
-            for col, text in enumerate(values):
-                item = QTableWidgetItem(text)
-                if col in (3, 4, 5):
-                    item.setTextAlignment(
-                        Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter
-                    )
-                self.table.setItem(row, col, item)
+        self.overview.fill_table(self._records)
 
         last_page = max(1, -(-self._total // _PAGE_SIZE))
-        self.count_label.setText(f"共 {self._total} 条记录")
-        self.page_label.setText(f"第 {self._page} / {last_page} 页")
-        self.prev_button.setEnabled(self._page > 1)
-        self.next_button.setEnabled(self._page < last_page)
-
-    def _make_stat_card(self, row: QHBoxLayout, title: str) -> QLabel:
-        """构建一张统计卡片，返回值标签（§3.2）。"""
-        frame = QFrame()
-        box = QVBoxLayout(frame)
-        title_label = QLabel(title)
-        value_label = QLabel("0.00")
-        value_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        box.addWidget(title_label)
-        box.addWidget(value_label)
-        row.addWidget(frame, stretch=1)
-        return value_label
+        self.overview.set_pager(self._total, self._page, last_page)
 
     def _refresh_stat_cards(self) -> None:
-        """刷新四张全局统计卡片（§3.2），显示带正负号与单位。"""
+        """刷新 hero 与三个 mini 指标（§3.2，全局值 STA-01）。
+
+        hero/mini 的 text() 只含数字与正负号（「元」是独立小号标签），
+        颜色按正负号切换：涨红跌绿。
+        """
         stats = self._service.global_statistics()
-        self.total_profit_value.setText(f"{format_money(stats.total_profit)} 元")
-        self.year_profit_value.setText(f"{format_money(stats.year_profit)} 元")
-        self.month_profit_value.setText(f"{format_money(stats.month_profit)} 元")
+        set_hero = self.overview.set_hero_value
+        set_hero(
+            self.total_profit_value,
+            format_money(stats.total_profit),
+            float(stats.total_profit),
+        )
+        set_hero(
+            self.year_profit_value,
+            format_money(stats.year_profit),
+            float(stats.year_profit),
+        )
+        set_hero(
+            self.month_profit_value,
+            format_money(stats.month_profit),
+            float(stats.month_profit),
+        )
         self.total_count_value.setText(f"{stats.total_count} 笔")
 
     def _refresh_charts(self) -> None:
