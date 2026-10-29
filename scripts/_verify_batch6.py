@@ -164,6 +164,63 @@ if STAGE in ("all", "import"):
         probe(img, f"{label}-fill", origin.x() + widget.width() - 8, origin.y() + widget.height() // 2)
         say(f"GEOM {label} x={origin.x()} y={origin.y()} w={widget.width()} h={widget.height()}")
 
+if STAGE == "dpi":
+    # 缩放下的裁切/重叠检查（数值化）：逐层确认子控件都在父容器可视范围内
+    from PySide6.QtCore import Qt
+    from PySide6.QtWidgets import QWidget
+
+    problems = []
+
+    def walk(widget: QWidget) -> None:
+        stack = [widget]
+        seen = set()
+        while stack:
+            current = stack.pop()
+            if id(current) in seen:
+                continue
+            seen.add(id(current))
+            for child in current.findChildren(QWidget, "", Qt.FindDirectChildrenOnly):  # 仅直接子级
+                stack.append(child)
+
+    say(f"minimumSize={window.minimumSize().width()}x{window.minimumSize().height()}")
+    for page_row in (0, 1, 2):
+        window.nav_list.setCurrentRow(page_row)
+        app.processEvents()
+        walk(window)
+        say(f"dpi page{page_row} visited")
+    dialog = RecordDialog(service)
+    dialog.show()
+    app.processEvents()
+    walk(dialog)
+    say("dpi record visited")
+
+    # 第二遍：真正做越界判断
+    def check(widget: QWidget) -> None:
+        win = widget.window().rect()
+        for child in widget.findChildren(QWidget, "", Qt.FindDirectChildrenOnly):
+            if not child.isVisible():
+                continue
+            tl = child.mapTo(widget.window(), child.rect().topLeft())
+            br = child.mapTo(widget.window(), child.rect().bottomRight())
+            if tl.x() < -2 or tl.y() < -2 or br.x() > win.width() + 2 or br.y() > win.height() + 2:
+                problems.append(
+                    f"{type(child).__name__}<{child.objectName()}> "
+                    f"({tl.x()},{tl.y()})-({br.x()},{br.y()}) 超出 {win.width()}x{win.height()}"
+                )
+            check(child)
+
+    for page_row in (0, 1, 2):
+        window.nav_list.setCurrentRow(page_row)
+        app.processEvents()
+        check(window)
+    dialog.raise_()
+    app.processEvents()
+    check(dialog)
+    for problem in problems[:12]:
+        say(f"PROBLEM {problem}")
+    say(f"dpi done dpr={window.devicePixelRatioF()} size={window.width()}x{window.height()} problems={len(problems)}")
+    raise SystemExit(0)
+
 if STAGE == "compose":
     from PySide6.QtCore import Qt
     from PySide6.QtGui import QColor, QImage, QPainter
