@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  转债账本 · 应用图标
+  设计：墨底圆角磁贴 + 三根递增红柱（涨=红，国内习惯）+ 账本横线
+  色值全部来自 ui/tokens.py：墨底 #121214、盈利红 浅 #c62828 / 深 #ff6b60、发丝线 #ececf0
+  不写字：16px 下任何文字都会糊成一团
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="tile" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#232329"/>
+      <stop offset="1" stop-color="#121214"/>
+    </linearGradient>
+    <linearGradient id="bar" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ff6b60"/>
+      <stop offset="1" stop-color="#c62828"/>
+    </linearGradient>
+    <linearGradient id="sheen" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.10"/>
+      <stop offset="0.47" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+  </defs>
+
+  <!-- 不用 clipPath：Qt SVG 对圆角 clipPath 支持不稳，直接让每个色块自己带圆角 -->
+  <g>
+    <rect x="0" y="0" width="512" height="512" rx="112" ry="112" fill="url(#tile)"/>
+    <rect x="0" y="0" width="512" height="512" rx="112" ry="112" fill="url(#sheen)"/>
+
+    <!-- 账本横线：柱下基准线 + 两条更弱的记录行 -->
+    <rect x="136" y="384" width="240" height="6" rx="3" fill="#ececf0" fill-opacity="0.42"/>
+    <rect x="160" y="406" width="192" height="5" rx="2.5" fill="#ececf0" fill-opacity="0.16"/>
+    <rect x="192" y="430" width="128" height="5" rx="2.5" fill="#ececf0" fill-opacity="0.16"/>
+
+    <!-- 三根递增红柱：底对齐基准线，顶部半圆 -->
+    <path d="M152 384 V 302 A 26 26 0 0 1 204 302 V 384 Z" fill="url(#bar)"/>
+    <path d="M230 384 V 234 A 26 26 0 0 1 282 234 V 384 Z" fill="url(#bar)"/>
+    <path d="M308 384 V 154 A 26 26 0 0 1 360 154 V 384 Z" fill="url(#bar)"/>
+
+    <!-- 磁贴内描边：浅色任务栏上也能看清边界 -->
+    <rect x="1" y="1" width="510" height="510" rx="111" ry="111"
+          fill="none" stroke="#ffffff" stroke-opacity="0.10" stroke-width="2"/>
+  </g>
+</svg>
