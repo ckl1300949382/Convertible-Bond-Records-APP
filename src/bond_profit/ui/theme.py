@@ -103,6 +103,11 @@ QComboBox QAbstractItemView {
 }
 
 /* ---- 表格 ---- */
+/* 自绘柱状图：背景随主题（WA_StyledBackground），柱与标签仍由 QPainter 画 */
+BarChart {
+    background-color: $canvas;
+    border: none;
+}
 QTableWidget {
     background-color: $canvas;
     alternate-background-color: $canvas;
@@ -143,29 +148,87 @@ QTableCornerButton::section {
 }
 
 /* ---- 左侧导航 ---- */
-QListWidget {
+QFrame#sidebar {
     background-color: $chrome;
     border: none;
     border-right: 1px solid $line;
-    font-size: ${f_body}px;
-    outline: none;
-    padding: 10px 8px;
 }
-QListWidget::item {
+QLabel#brandMark {
+    background-color: $accent;
+    border-radius: 8px;
+    color: $accent_fg;
+    font-size: ${f_base}px;
+    font-weight: 600;
+}
+QLabel#brandName {
+    color: $text;
+    font-size: 12.5px;
+    font-weight: 600;
+}
+QLabel#brandSub {
+    color: $text_3;
+    font-size: 10.5px;
+}
+/* 导航列表本身透明，边线由 #sidebar 统一给出，避免出现双线 */
+QListWidget#nav {
+    background: transparent;
+    border: none;
+    font-size: 12.5px;
+    outline: none;
+    padding: 0;
+}
+QListWidget#nav::item {
     border-radius: ${radius_control}px;
     color: $text_2;
     margin-bottom: 2px;
-    padding: 8px 9px;
+    min-height: ${nav_item_h}px;
+    padding: 0 9px;
 }
-QListWidget::item:hover {
+QListWidget#nav::item:hover {
     background-color: $fill_hover;
     color: $text;
 }
-QListWidget::item:selected {
+QListWidget#nav::item:selected {
     background-color: $canvas;
-    border: 1px solid $line_strong;
+    border: 1px solid $line;
     color: $text;
     font-weight: 500;
+}
+QListWidget#nav::item:selected:active {
+    background-color: $canvas;
+}
+QPushButton#sideButton {
+    background-color: $fill;
+    border: 1px solid transparent;
+    border-radius: ${radius_control}px;
+    color: $text_2;
+    font-size: ${f_small}px;
+    min-height: ${control_h}px;
+    padding: 0 8px;
+}
+QPushButton#sideButton:hover {
+    background-color: $fill_hover;
+    color: $text;
+}
+QPushButton#iconButton {
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: ${radius_chip}px;
+    padding: 0;
+}
+QPushButton#iconButton:hover {
+    background-color: $fill_hover;
+}
+QLabel#sideMeta {
+    color: $text_3;
+    font-size: 10.5px;
+}
+QLabel#statusDot {
+    background-color: $text_3;
+    border-radius: 3px;
+}
+QLabel#statusDot[ok="true"] {
+    background-color: $profit;
 }
 
 /* ---- 滚动条：默认隐形，悬停显形 ---- */
@@ -269,8 +332,10 @@ def _substitutions(mode: str) -> dict[str, str]:
     values["radius_control"] = str(tokens.RADIUS["control"])
     values["radius_chip"] = str(tokens.RADIUS["chip"])
     values["control_h"] = str(tokens.CONTROL_HEIGHT)
+    values["nav_item_h"] = str(tokens.NAV_ITEM_HEIGHT)
     values["f_small"] = str(tokens.FONT_SIZE["small"])
     values["f_body"] = str(tokens.FONT_SIZE["body"])
+    values["f_base"] = str(tokens.FONT_SIZE["base"])
     return values
 
 
@@ -299,6 +364,9 @@ def stylesheet_for(mode: str) -> str:
 BASE_STYLE = "Fusion"
 BASE_STYLE_MARK = "bpBaseStyle"
 
+# 当前主题记在 QApplication 上：预渲染图标无法被 QSS 着色，需按此值重新生成。
+THEME_MODE_PROPERTY = "bpThemeMode"
+
 
 def _ensure_base_style(app: QApplication) -> None:
     if app.property(BASE_STYLE_MARK):
@@ -308,10 +376,16 @@ def _ensure_base_style(app: QApplication) -> None:
 
 
 def apply_theme(app: QApplication, mode: str) -> None:
-    """应用主题：Fusion 风格 + 全局字体 + 由令牌生成的 QSS。"""
+    """应用主题：Fusion 风格 + 全局字体 + 由令牌生成的 QSS。
+
+    顺带在 app 上记下当前主题，供 :func:`bond_profit.ui.widgets.current_mode`
+    读取——图标是预渲染的 ``QIcon``，QSS 改不了，只能靠这里知道该用哪套色。
+    """
     _ensure_base_style(app)
     tokens.apply_app_font(app)
-    app.setStyleSheet(stylesheet_for(mode))
+    resolved = tokens.palette_for(mode).mode  # 未知值规范化成 light/dark
+    app.setProperty(THEME_MODE_PROPERTY, resolved)
+    app.setStyleSheet(stylesheet_for(resolved))
 
 
 def chart_label_color(mode: str) -> QColor:

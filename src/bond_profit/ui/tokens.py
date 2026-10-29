@@ -113,6 +113,9 @@ CONTROL_HEIGHT = 28  # 次要按钮、输入框、下拉框统一高度
 ROW_HEIGHT = 30  # 表格行高
 HEADER_HEIGHT = 26  # 表头高度
 
+SIDEBAR_WIDTH = 196  # 左侧导航宽度（提案 B：图标 + 文字）
+NAV_ITEM_HEIGHT = 32  # 导航项行高
+
 
 def palette_for(mode: str) -> Palette:
     """未知值按浅色处理（与 ``prefs.resolve_theme`` 的容错一致）。"""

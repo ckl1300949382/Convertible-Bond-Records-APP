@@ -17,6 +17,16 @@
   - `ui/main_window.py`：central 加 `objectName("root")`；移除 4 张统计卡与 2 个图表容器的 `StyledPanel` 边框（旧的深灰凸起框与新风格冲突）
   - 测试更新 4 处（均为「旧视觉契约」而非行为变更）：`test_theme.py` 的「深色 QSS 含 #2b2b2b」改为读取令牌、`test_stylesheet_for_light_is_empty` 改为验证浅色也有完整 QSS 且与深色不同、`test_apply_theme_sets_and_clears_stylesheet` 改为验证切换不残留
   - 本机实测：全量 228 项通过；用 58 条虚构记录渲染真实窗口截图核对，浅色/深色均无黑字压深底、无深灰残留块
+  - 补充：`test_main_window.py` 的主题切换断言收紧——不再以「浅色 = 空 QSS」为前提（该前提已被本批推翻，旧断言只是碰巧通过），改为「实际样式表 == 该主题应有样式表」
+
+- 批次 2（图标层、组件层与侧栏重做）：
+  - 新增 `ui/icons.py`：13 个内联 SVG 图标（总览/数据管理/备份/新增/编辑/删除/搜索/日/月/文件夹/刷新/勾/警告），`QSvgRenderer` 渲染，不引入图标库、保持完全离线；只缓存 SVG 字节串而不缓存 `QPixmap`（QPixmap 绑定 QApplication，测试重建 app 后旧位图会变悬空对象）
+  - 新增 `ui/widgets.py`：`Sidebar`（品牌区 + 导航 + 底部状态行）、`BrandMark`、`StatusDot`（QSS 动态属性着色）、`IconButton`/`PrimaryButton`/`GhostButton`
+  - 侧栏重做：140px 纯文字列表 → 196px 图标+文字侧栏；新增品牌区（「转」方块 + 转债账本 + 本地·离线）；底部新增「上次自动备份」状态行；主题按钮与日志按钮从工具栏移到侧栏底部
+  - **测试契约不变**：`nav_list` 仍是 `QListWidget`（`count()`/`item(i).text()`/`currentRow()` 断言原样通过）；`theme_button`/`log_button` 仍是 `MainWindow` 的属性，`text()` 契约不变
+  - 图标随主题重新着色：`Sidebar.refresh_icons(mode)`——QIcon 是预渲染位图，QSS 管不到，必须显式重新生成；当前主题记录在 `QApplication`（`theme.THEME_MODE_PROPERTY`）
+  - 修复自绘图表深色下露浅灰底：QSS 不更新 QPalette（已知坑 5 的又一实例），`BarChart` 开启 `WA_StyledBackground` 并加 QSS `BarChart` 规则，背景随主题自动切换（探针实测深色 `#121214` / 浅色 `#ffffff`）
+  - 本机实测：全量 228 项通过；真实窗口截图核对，侧栏三图标、选中高亮（盈利红图标 + 卡片底）、底部状态行在浅色/深色下均正常
 
 ## [未发布] - 2026-10-28 - 维护：测试隔离与文档修正
 

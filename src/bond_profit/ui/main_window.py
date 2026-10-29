@@ -44,6 +44,7 @@ from bond_profit.ui.backup_page import BackupPage
 from bond_profit.ui.bar_chart import BarChart
 from bond_profit.ui.data_management import DataManagementPage
 from bond_profit.ui.record_dialog import RecordDialog
+from bond_profit.ui.widgets import Sidebar
 
 _COLUMNS = (
     "卖出日期",
@@ -89,11 +90,16 @@ class MainWindow(QMainWindow):
         central.setObjectName("root")  # 供 QSS 定位背景，避免用裸 QWidget{} 选择器
         root = QHBoxLayout(central)
 
-        # ---- 左侧导航（§3.1 总览 / 数据管理） --------------------------------
-        self.nav_list = QListWidget()
-        self.nav_list.addItems(["总览", "数据管理", "备份与恢复"])
-        self.nav_list.setFixedWidth(140)
-        root.addWidget(self.nav_list)
+        # ---- 左侧导航（§3.1 总览 / 数据管理 / 备份与恢复） ------------------
+        # 页面切换仍走 QListWidget 的行索引；导航外观与底部操作收进 Sidebar
+        self.sidebar = Sidebar()
+        self.nav_list = self.sidebar.nav_list
+        self.theme_button = self.sidebar.theme_button
+        self.log_button = self.sidebar.log_button
+        self.theme_button.setToolTip("在浅色/深色之间切换，选择会被记住")
+        self.log_button.setToolTip("打开日志文件夹；反馈问题时可将整个文件夹发给我们")
+        self.log_button.clicked.connect(self._on_open_logs)
+        root.addWidget(self.sidebar)
 
         self.pages = QStackedWidget()
         root.addWidget(self.pages, stretch=1)
@@ -128,17 +134,6 @@ class MainWindow(QMainWindow):
         for month in range(1, 13):
             self.month_combo.addItem(f"{month} 月", month)
         toolbar.addWidget(self.month_combo)
-
-        self.theme_button = QPushButton("主题")  # 文本在 _apply_theme_mode 设置
-        self.theme_button.setFixedWidth(64)
-        self.theme_button.setToolTip("在浅色/深色之间切换，选择会被记住")
-        toolbar.addWidget(self.theme_button)
-
-        # 日志入口（阶段 5）：打开日志文件夹，便于用户整包拷贝反馈问题
-        self.log_button = QPushButton("打开日志")
-        self.log_button.setToolTip("打开日志文件夹；反馈问题时可将整个文件夹发给我们")
-        self.log_button.clicked.connect(self._on_open_logs)
-        toolbar.addWidget(self.log_button)
 
         layout.addLayout(toolbar)
 
@@ -374,6 +369,8 @@ class MainWindow(QMainWindow):
         label_color = theme.chart_label_color(mode)
         self.monthly_chart.set_label_color(label_color)
         self.yearly_chart.set_label_color(label_color)
+        # 图标是预渲染的，QSS 管不到，必须显式按新主题重新着色
+        self.sidebar.refresh_icons(mode)
         self.theme_button.setText("深色" if mode == "dark" else "浅色")
         self.theme_button.setToolTip("当前为{}主题，点击切换".format(
             "深色" if mode == "dark" else "浅色"

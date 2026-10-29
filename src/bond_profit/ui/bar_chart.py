@@ -32,6 +32,9 @@ class BarChart(QWidget):
         self._items: list[tuple[str, Decimal]] = []
         self._label_color = QColor("#555555")
         self.setMinimumHeight(170)
+        # 背景交给 QSS（theme.py 里的 BarChart 规则）。不设的话普通 QWidget
+        # 会露出系统调色板的浅灰——QSS 不更新 QPalette，深色下就是一块白。
+        self.setAttribute(Qt.WidgetAttribute.WA_StyledBackground, True)
 
     @property
     def items(self) -> list[tuple[str, Decimal]]:
